@@ -19,7 +19,7 @@ func main() {
 	r := chi.NewRouter()
 	ctx := context.Background()
 	validate := validator.New()
-	godotenv.Load("../.env")
+	godotenv.Load()
 
 	// Middleware
 
@@ -38,6 +38,7 @@ func main() {
 	// Handlers
 
 	r.Post("/register", dbHandler.Registration)
+	r.Post("/login", dbHandler.Login)
 
 	// Starting
 

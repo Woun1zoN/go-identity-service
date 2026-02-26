@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 
+	"github.com/Woun1zoN/go-identity-service/internal/auth"
 	"github.com/Woun1zoN/go-identity-service/internal/db"
 	"github.com/Woun1zoN/go-identity-service/internal/models"
 
@@ -87,11 +89,13 @@ func (Server *DBHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var pass string
+	var userID int
 
-	err = Server.DB.QueryRow(r.Context(), "SELECT password_hash FROM users WHERE email = $1", input.Email).Scan(&pass)
+	err = Server.DB.QueryRow(r.Context(), "SELECT id, password_hash FROM users WHERE email = $1", input.Email).Scan(&userID, &pass)
 	if err != nil {
 		if err == pgx.ErrNoRows {
             http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			log.Println(err)
             return
         }
         log.Println("DB error:", err)
@@ -104,6 +108,11 @@ func (Server *DBHandler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 	} else {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`"login ok"`))
+		token, err := auth.GenerateToken(strconv.Itoa(userID))
+        if err != nil {
+            panic(err)
+        }
+
+        log.Println("JWT:", token)
 	}
 }

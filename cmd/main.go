@@ -7,9 +7,10 @@ import (
 
 	"github.com/Woun1zoN/go-identity-service/internal/db"
 	"github.com/Woun1zoN/go-identity-service/internal/handlers"
+	"github.com/Woun1zoN/go-identity-service/internal/middleware"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/go-chi/chi"
+	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
 )
 
@@ -22,6 +23,8 @@ func main() {
 	godotenv.Load()
 
 	// Middleware
+
+	r.Use(middleware.Auth)
 
 	// Connection DB
 

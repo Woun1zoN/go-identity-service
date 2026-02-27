@@ -72,6 +72,7 @@ func (Server *DBHandler) Registration(w http.ResponseWriter, r *http.Request) {
 }
 
 func (Server *DBHandler) Login(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	defer r.Body.Close()
 
 	var input models.UserRequest
@@ -95,7 +96,6 @@ func (Server *DBHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err == pgx.ErrNoRows {
             http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			log.Println(err)
             return
         }
         log.Println("DB error:", err)
@@ -110,9 +110,14 @@ func (Server *DBHandler) Login(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		token, err := auth.GenerateToken(strconv.Itoa(userID))
         if err != nil {
-            panic(err)
+            http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+            return
         }
 
-        log.Println("JWT:", token)
+        response := models.LoginResponse{
+			AccessToken: token,
+		}
+
+		json.NewEncoder(w).Encode(response)
 	}
 }

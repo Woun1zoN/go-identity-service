@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/Woun1zoN/go-identity-service/internal/auth"
 	"github.com/Woun1zoN/go-identity-service/internal/db"
@@ -62,7 +63,7 @@ func (Server *DBHandler) Registration(w http.ResponseWriter, r *http.Request) {
         return
 	}
 
-	response := models.RegisterResponse{
+	response := models.UserResponse{
 		ID:    userID,
 		Email: input.Email,
 	}
@@ -120,4 +121,29 @@ func (Server *DBHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 		json.NewEncoder(w).Encode(response)
 	}
+}
+
+func (Server *DBHandler) Profile(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+
+    userIDStr := r.Context().Value("user_id").(string)
+	userID, err := strconv.Atoi(userIDStr)
+    if err != nil {
+        http.Error(w, "Invalid user ID", http.StatusUnauthorized)
+        return
+    }
+
+	var createdAt time.Time
+	response := models.UserResponse{}
+
+	err = Server.DB.QueryRow(r.Context(), "SELECT id, email, created_at FROM users WHERE id = $1", userID).Scan(&response.ID, &response.Email, &createdAt)
+	if err != nil {
+        http.Error(w, "You do not have an account, please log in or register", http.StatusUnauthorized)
+		log.Println(err)
+        return
+	}
+
+	response.Time = createdAt.Format("2006-01-02 15:04:05")
+
+	json.NewEncoder(w).Encode(response)
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/Woun1zoN/go-identity-service/internal/db"
 	"github.com/Woun1zoN/go-identity-service/internal/handlers"
+	"github.com/Woun1zoN/go-identity-service/internal/middleware"
 
 	"github.com/go-chi/chi"
 	"github.com/go-playground/validator/v10"
@@ -39,6 +40,8 @@ func main() {
 
 	r.Post("/register", dbHandler.Registration)
 	r.Post("/login", dbHandler.Login)
+
+	r.With(middleware.Auth).Get("/profile", dbHandler.Profile)
 
 	// Starting
 

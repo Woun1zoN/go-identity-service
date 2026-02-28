@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"fmt"
 
 	"github.com/Woun1zoN/go-identity-service/internal/auth"
 	"github.com/Woun1zoN/go-identity-service/internal/db"
@@ -16,6 +17,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type DBHandler struct {
@@ -109,14 +111,27 @@ func (Server *DBHandler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 	} else {
 		w.WriteHeader(http.StatusOK)
-		token, err := auth.GenerateToken(strconv.Itoa(userID))
+		accessToken, err := auth.GenerateAccessToken(strconv.Itoa(userID))
         if err != nil {
             http.Error(w, "Failed to generate token", http.StatusInternalServerError)
             return
         }
 
+		refreshToken, refreshID, refreshHash, err := auth.GenerateRefreshToken(strconv.Itoa(userID))
+        if err != nil {
+            http.Error(w, "Failed to generate tokens", http.StatusInternalServerError)
+            return
+        }
+
+		_, err = Server.DB.Exec(r.Context(), "INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at) VALUES ($1, $2, $3, $4)", refreshID, userID, refreshHash, time.Now().Add(7*24*time.Hour))
+		if err != nil {
+            http.Error(w, "Failed to save refresh token", http.StatusInternalServerError)
+            return
+        }
+
         response := models.LoginResponse{
-			AccessToken: token,
+			AccessToken: accessToken,
+			RefreshToken: refreshToken,
 		}
 
 		json.NewEncoder(w).Encode(response)
@@ -146,4 +161,62 @@ func (Server *DBHandler) Profile(w http.ResponseWriter, r *http.Request) {
 	response.Time = createdAt.Format("2006-01-02 15:04:05")
 
 	json.NewEncoder(w).Encode(response)
+}
+
+func (Server *DBHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	defer r.Body.Close()
+
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+
+	token, err := jwt.Parse(req.RefreshToken, func(t *jwt.Token) (interface{}, error) {
+    if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+        return nil, fmt.Errorf("unexpected signing method")
+    }
+    return auth.JwtKey, nil
+    })
+	if err != nil || !token.Valid {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+    if !ok {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
+    jti, ok := claims["jti"].(string)
+    if !ok {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
+    userID, ok := claims["user_id"].(string)
+    if !ok {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
+
+	hash := auth.HashToken(req.RefreshToken)
+
+	var revoked bool
+    var expiresAt time.Time
+	var token_hash string
+
+	err = Server.DB.QueryRow(r.Context(), "SELECT token_hash, revoked, expires_at FROM refresh_tokens WHERE id = $1", jti).Scan(&token_hash, &revoked, &expiresAt)
+	if err != nil || token_hash != hash || revoked || time.Now().After(expiresAt) {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
+
+	access, err := auth.GenerateAccessToken(userID)
+	if err != nil {
+		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+        return
+	}
+	json.NewEncoder(w).Encode(map[string]string{
+        "access_token": access,
+    })
 }

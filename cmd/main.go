@@ -24,6 +24,11 @@ func main() {
 
 	// Middleware
 
+	r.Use(middleware.RequestID)
+	r.Use(middleware.Recovery)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Context)
+
 	// Connection DB
 
 	dbServer, err := db.InitDB(ctx)
@@ -40,6 +45,7 @@ func main() {
 
 	r.Post("/register", dbHandler.Registration)
 	r.Post("/login", dbHandler.Login)
+	r.Post("/refresh", dbHandler.Refresh)
 
 	r.With(middleware.Auth).Get("/profile", dbHandler.Profile)
 

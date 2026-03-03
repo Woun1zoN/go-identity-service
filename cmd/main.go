@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/Woun1zoN/go-identity-service/internal/db"
 	"github.com/Woun1zoN/go-identity-service/internal/handlers"
@@ -44,8 +45,17 @@ func main() {
 	// Handlers
 
 	r.Post("/register", dbHandler.Registration)
-	r.Post("/login", dbHandler.Login)
-	r.Post("/refresh", dbHandler.Refresh)
+
+	limit := 5               // 5 запросов
+    window := time.Minute
+
+	r.With(func(next http.Handler) http.Handler {
+        return middleware.RateLimit(next, limit, window)
+	}).Post("/login", dbHandler.Login)
+
+	r.With(func(next http.Handler) http.Handler {
+        return middleware.RateLimit(next, limit, window)
+    }).Post("/refresh", dbHandler.Refresh)
 
 	r.With(middleware.Auth).Get("/profile", dbHandler.Profile)
 

@@ -13,7 +13,7 @@ type UserRequest struct {
     Time     string `json:"time,omitempty"`
 }
 
-type LoginResponse struct {
+type TokenResponse struct {
     AccessToken  string `json:"access_token"`
     RefreshToken string `json:"refresh_token,omitempty"`
 }

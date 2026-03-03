@@ -129,7 +129,7 @@ func (Server *DBHandler) Login(w http.ResponseWriter, r *http.Request) {
             return
         }
 
-        response := models.LoginResponse{
+        response := models.TokenResponse{
 			AccessToken: accessToken,
 			RefreshToken: refreshToken,
 		}
@@ -170,7 +170,10 @@ func (Server *DBHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		RefreshToken string `json:"refresh_token"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Bad Request", http.StatusBadRequest)
+        return
+	}
 
 	token, err := jwt.Parse(req.RefreshToken, func(t *jwt.Token) (interface{}, error) {
     if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -211,12 +214,36 @@ func (Server *DBHandler) Refresh(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+	_, err = Server.DB.Exec(r.Context(), "UPDATE refresh_tokens SET revoked = true WHERE id = $1", jti)
+	if err != nil {
+        http.Error(w, "Failed", http.StatusInternalServerError)
+        return
+	}
+
+	refresh, newJTI, _, err := auth.GenerateRefreshToken(userID)
+	if err != nil {
+		http.Error(w, "Failed", http.StatusInternalServerError)
+        return
+	}
+
+	newHash := auth.HashToken(refresh)
+
+	_, err = Server.DB.Exec(r.Context(), "INSERT INTO refresh_tokens (id, user_id, token_hash, revoked, expires_at) VALUES ($1, $2, $3, false, $4)", newJTI, userID, newHash, time.Now().Add(7*24*time.Hour))
+	if err != nil {
+        http.Error(w, "Failed", http.StatusInternalServerError)
+        return
+    }
+
 	access, err := auth.GenerateAccessToken(userID)
 	if err != nil {
 		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
         return
 	}
-	json.NewEncoder(w).Encode(map[string]string{
-        "access_token": access,
-    })
+
+	response := models.TokenResponse{
+		AccessToken: access,
+		RefreshToken: refresh,
+	}
+
+	json.NewEncoder(w).Encode(response)
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -22,6 +23,12 @@ func main() {
 	ctx := context.Background()
 	validate := validator.New()
 	godotenv.Load()
+
+	rdb := redis.NewClient(&redis.Options{
+        Addr:     "localhost:6379",
+        Password: "",
+        DB:       0,
+    })
 
 	// Middleware
 
@@ -46,15 +53,15 @@ func main() {
 
 	r.Post("/register", dbHandler.Registration)
 
-	limit := 5               // 5 запросов
+	limit := 5
     window := time.Minute
 
 	r.With(func(next http.Handler) http.Handler {
-        return middleware.RateLimit(next, limit, window)
+        return middleware.RateLimit(next, limit, window, rdb)
 	}).Post("/login", dbHandler.Login)
 
 	r.With(func(next http.Handler) http.Handler {
-        return middleware.RateLimit(next, limit, window)
+        return middleware.RateLimit(next, limit, window, rdb)
     }).Post("/refresh", dbHandler.Refresh)
 
 	r.With(middleware.Auth).Get("/profile", dbHandler.Profile)

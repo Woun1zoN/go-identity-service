@@ -4,19 +4,14 @@ import (
 	"context"
 	"time"
 	"net/http"
+    "net"
 
 	"github.com/redis/go-redis/v9"
 )
 
 var ctx = context.Background()
 
-var rdb = redis.NewClient(&redis.Options{
-    Addr:     "localhost:6380",
-    Password: "",
-    DB:       0,
-})
-
-func AllowRequest(userID string, limit int, window time.Duration) (bool, error) {
+func AllowRequest(userID string, limit int, window time.Duration, rdb *redis.Client) (bool, error) {
     key := "rate:" + userID
     val, err := rdb.Incr(ctx, key).Result()
     if err != nil {
@@ -31,10 +26,11 @@ func AllowRequest(userID string, limit int, window time.Duration) (bool, error) 
     return true, nil
 }
 
-func RateLimit(next http.Handler, limit int, window time.Duration) http.Handler {
+func RateLimit(next http.Handler, limit int, window time.Duration, rdb *redis.Client) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        userID := r.RemoteAddr
-        allowed, err := AllowRequest(userID, limit, window)
+        ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+        userID := ip
+        allowed, err := AllowRequest(userID, limit, window, rdb)
         if err != nil {
             http.Error(w, "Internal Server Error", 500)
             return

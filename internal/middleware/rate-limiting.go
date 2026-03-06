@@ -2,9 +2,11 @@ package middleware
 
 import (
 	"context"
-	"time"
+	"net"
 	"net/http"
-    "net"
+	"time"
+
+	"github.com/Woun1zoN/go-identity-service/internal/error_handling"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -36,7 +38,8 @@ func RateLimit(next http.Handler, limit int, window time.Duration, rdb *redis.Cl
             return
         }
         if !allowed {
-            http.Error(w, "Too Many Requests", 429)
+            err := errorhandling.ErrTooManyRequests
+            errorhandling.HTTPErrors(w, err, "RateLimit")
             return
         }
         next.ServeHTTP(w, r)

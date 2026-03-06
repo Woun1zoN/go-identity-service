@@ -1,14 +1,20 @@
 package middleware
 
 import (
-	"net/http"
-	"strings"
 	"context"
 	"fmt"
+	"net/http"
 	"os"
+	"strings"
+
+	"github.com/Woun1zoN/go-identity-service/internal/error_handling"
 
 	"github.com/golang-jwt/jwt/v5"
 )
+
+type contextKey string
+
+const UserIDKey contextKey = "user_id"
 
 var jwtKey = []byte(os.Getenv("JWT_SECRET"))
 
@@ -16,7 +22,7 @@ func Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
         if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-            http.Error(w, "Unauthorized", http.StatusUnauthorized)
+            errorhandling.Unauthorized(w, r, GetRequestID(r))
             return
         }
 
@@ -30,17 +36,19 @@ func Auth(next http.Handler) http.Handler {
         })
 
         if err != nil || !token.Valid {
-            http.Error(w, "Unauthorized", http.StatusUnauthorized)
+            errorhandling.Unauthorized(w, r, GetRequestID(r))
             return
         }
 
         claims, ok := token.Claims.(jwt.MapClaims)
         if !ok || claims["user_id"] == nil {
-            http.Error(w, "Unauthorized", http.StatusUnauthorized)
+            errorhandling.Unauthorized(w, r, GetRequestID(r))
             return
         }
 
-        ctx := context.WithValue(r.Context(), "user_id", claims["user_id"])
+        userID := fmt.Sprintf("%v", claims["user_id"])
+
+        ctx := context.WithValue(r.Context(), UserIDKey, userID)
         next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

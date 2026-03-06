@@ -2,22 +2,24 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
-	"fmt"
+	"errors"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/Woun1zoN/go-identity-service/internal/auth"
 	"github.com/Woun1zoN/go-identity-service/internal/db"
+	"github.com/Woun1zoN/go-identity-service/internal/error_handling"
 	"github.com/Woun1zoN/go-identity-service/internal/models"
+	"github.com/Woun1zoN/go-identity-service/internal/middleware"
 
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type DBHandler struct {
@@ -39,29 +41,24 @@ func (Server *DBHandler) Registration(w http.ResponseWriter, r *http.Request) {
 	var input models.UserRequest
 
 	err := json.NewDecoder(r.Body).Decode(&input)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
+	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+        return
 	}
 
 	err = Server.Validate.Struct(input)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
+	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+        return
 	}
 
 	pass, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+        return
 	}
 
     var userID int
 
 	err = Server.DB.QueryRow(r.Context(), "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id", input.Email, string(pass)).Scan(&userID)
-	if err != nil {
-        log.Println("DB error:", err)
-        http.Error(w, "internal error", http.StatusInternalServerError)
+	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
         return
 	}
 
@@ -71,7 +68,9 @@ func (Server *DBHandler) Registration(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+        errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r))
+    }
 }
 
 func (Server *DBHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -81,80 +80,75 @@ func (Server *DBHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var input models.UserRequest
 
 	err := json.NewDecoder(r.Body).Decode(&input)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
+	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+        return
 	}
 
 	err = Server.Validate.Struct(input)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
+	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+        return
 	}
 
 	var pass string
 	var userID int
 
 	err = Server.DB.QueryRow(r.Context(), "SELECT id, password_hash FROM users WHERE email = $1", input.Email).Scan(&userID, &pass)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-            http.Error(w, "Unauthorized", http.StatusUnauthorized)
-            return
-        }
-        log.Println("DB error:", err)
-        http.Error(w, "internal error", http.StatusInternalServerError)
+	if errors.Is(err, pgx.ErrNoRows) {
+        errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
         return
-	}
+    }
+
+	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+        return
+    }
 
 	err = bcrypt.CompareHashAndPassword([]byte(pass), []byte(input.Password))
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-	} else {
-		w.WriteHeader(http.StatusOK)
-		accessToken, err := auth.GenerateAccessToken(strconv.Itoa(userID))
-        if err != nil {
-            http.Error(w, "Failed to generate token", http.StatusInternalServerError)
-            return
-        }
+        errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
+        return
+    }
 
-		refreshToken, refreshID, refreshHash, err := auth.GenerateRefreshToken(strconv.Itoa(userID))
-        if err != nil {
-            http.Error(w, "Failed to generate tokens", http.StatusInternalServerError)
-            return
-        }
+	accessToken, err := auth.GenerateAccessToken(strconv.Itoa(userID))
+    if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+        return
+    }
 
-		_, err = Server.DB.Exec(r.Context(), "INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at) VALUES ($1, $2, $3, $4)", refreshID, userID, refreshHash, time.Now().Add(7*24*time.Hour))
-		if err != nil {
-            http.Error(w, "Failed to save refresh token", http.StatusInternalServerError)
-            return
-        }
-
-        response := models.TokenResponse{
-			AccessToken: accessToken,
-			RefreshToken: refreshToken,
-		}
-
-		json.NewEncoder(w).Encode(response)
+	refreshToken, refreshID, refreshHash, err := auth.GenerateRefreshToken(strconv.Itoa(userID))
+    if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+        return
 	}
+
+	_, err = Server.DB.Exec(r.Context(), "INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at) VALUES ($1, $2, $3, $4)", refreshID, userID, refreshHash, time.Now().Add(7*24*time.Hour))
+	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+        return
+	}
+
+    response := models.TokenResponse{
+		AccessToken: accessToken,
+		RefreshToken: refreshToken,
+	}
+
+	json.NewEncoder(w).Encode(response)
 }
 
 func (Server *DBHandler) Profile(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
 
-    userIDStr := r.Context().Value("user_id").(string)
-	userID, err := strconv.Atoi(userIDStr)
-    if err != nil {
-        http.Error(w, "Invalid user ID", http.StatusUnauthorized)
+    userIDStr, ok := r.Context().Value(middleware.UserIDKey).(string)
+    if !ok {
+        errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
         return
     }
+	userID, err := strconv.Atoi(userIDStr)
+    if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+        return
+	}
 
 	var createdAt time.Time
 	response := models.UserResponse{}
 
 	err = Server.DB.QueryRow(r.Context(), "SELECT id, email, created_at FROM users WHERE id = $1", userID).Scan(&response.ID, &response.Email, &createdAt)
-	if err != nil {
-        http.Error(w, "You do not have an account, please log in or register", http.StatusUnauthorized)
-		log.Println(err)
+	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
         return
 	}
 
@@ -170,8 +164,7 @@ func (Server *DBHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		RefreshToken string `json:"refresh_token"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        http.Error(w, "Bad Request", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&req); errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
         return
 	}
 
@@ -181,24 +174,29 @@ func (Server *DBHandler) Refresh(w http.ResponseWriter, r *http.Request) {
     }
     return auth.JwtKey, nil
     })
-	if err != nil || !token.Valid {
-        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+
+    if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+		return
+    }
+
+	if !token.Valid {
+        errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
         return
     }
 
 	claims, ok := token.Claims.(jwt.MapClaims)
     if !ok {
-        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
         return
     }
     jti, ok := claims["jti"].(string)
     if !ok {
-        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
         return
     }
     userID, ok := claims["user_id"].(string)
     if !ok {
-        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
         return
     }
 
@@ -209,35 +207,40 @@ func (Server *DBHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var token_hash string
 
 	err = Server.DB.QueryRow(r.Context(), "SELECT token_hash, revoked, expires_at FROM refresh_tokens WHERE id = $1", jti).Scan(&token_hash, &revoked, &expiresAt)
-	if err != nil || token_hash != hash || revoked || time.Now().After(expiresAt) {
-        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	if errors.Is(err, pgx.ErrNoRows) {
+        errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
+        return
+    }
+
+    if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+        return
+    }
+
+	if token_hash != hash || revoked || time.Now().After(expiresAt) {
+        errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
         return
     }
 
 	_, err = Server.DB.Exec(r.Context(), "UPDATE refresh_tokens SET revoked = true WHERE id = $1", jti)
-	if err != nil {
-        http.Error(w, "Failed", http.StatusInternalServerError)
-        return
+	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+		return
 	}
 
 	refresh, newJTI, _, err := auth.GenerateRefreshToken(userID)
-	if err != nil {
-		http.Error(w, "Failed", http.StatusInternalServerError)
-        return
+	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+		return
 	}
 
 	newHash := auth.HashToken(refresh)
 
 	_, err = Server.DB.Exec(r.Context(), "INSERT INTO refresh_tokens (id, user_id, token_hash, revoked, expires_at) VALUES ($1, $2, $3, false, $4)", newJTI, userID, newHash, time.Now().Add(7*24*time.Hour))
-	if err != nil {
-        http.Error(w, "Failed", http.StatusInternalServerError)
-        return
-    }
+	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+		return
+	}
 
 	access, err := auth.GenerateAccessToken(userID)
-	if err != nil {
-		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
-        return
+	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+		return
 	}
 
 	response := models.TokenResponse{

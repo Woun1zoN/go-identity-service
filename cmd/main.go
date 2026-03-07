@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Woun1zoN/go-identity-service/internal/db"
+	"github.com/Woun1zoN/go-identity-service/internal/repository"
 	"github.com/Woun1zoN/go-identity-service/internal/handlers"
 	"github.com/Woun1zoN/go-identity-service/internal/middleware"
 
@@ -47,24 +48,25 @@ func main() {
 
 	log.Println("Подключен к БД")
 
-	dbHandler := handlers.NewDBHandler(dbServer, validate)
+	userRepo := repository.NewUserRepository(dbServer.DB)
+    handler := handlers.NewHandler(userRepo, validate)
 
 	// Handlers
 
-	r.Post("/register", dbHandler.Registration)
+	r.Post("/register", handler.Registration)
 
 	limit := 5
     window := time.Minute
 
 	r.With(func(next http.Handler) http.Handler {
         return middleware.RateLimit(next, limit, window, rdb)
-	}).Post("/login", dbHandler.Login)
+	}).Post("/login", handler.Login)
 
 	r.With(func(next http.Handler) http.Handler {
         return middleware.RateLimit(next, limit, window, rdb)
-    }).Post("/refresh", dbHandler.Refresh)
+    }).Post("/refresh", handler.Refresh)
 
-	r.With(middleware.Auth).Get("/profile", dbHandler.Profile)
+	r.With(middleware.Auth).Get("/profile", handler.Profile)
 
 	// Starting
 

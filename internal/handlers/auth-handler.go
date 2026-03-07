@@ -11,11 +11,25 @@ import (
 	"github.com/Woun1zoN/go-identity-service/internal/error_handling"
 	"github.com/Woun1zoN/go-identity-service/internal/middleware"
 	"github.com/Woun1zoN/go-identity-service/internal/auth"
+	"github.com/Woun1zoN/go-identity-service/internal/repository"
 
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/go-playground/validator/v10"
 )
+
+type Handler struct {
+	DB *repository.UserRepository
+	Validate *validator.Validate
+}
+
+func NewHandler(userRepo *repository.UserRepository, validate *validator.Validate) *Handler {
+	return &Handler{
+		DB: userRepo,
+		Validate: validate,
+	}
+}
 
 func (Server *Handler) Registration(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")

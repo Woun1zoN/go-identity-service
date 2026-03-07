@@ -5,7 +5,17 @@ import (
 	"time"
 
 	"github.com/Woun1zoN/go-identity-service/internal/models"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+type UserRepository struct {
+	DB *pgxpool.Pool
+}
+
+func NewUserRepository(db *pgxpool.Pool) *UserRepository {
+	return &UserRepository{DB: db}
+}
 
 func (r *UserRepository) GetRefreshTokenByID(ctx context.Context, jti string) (*models.RefreshToken, error) {
 	var token models.RefreshToken

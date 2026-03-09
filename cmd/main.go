@@ -54,6 +54,7 @@ func main() {
 	// Handlers
 
 	r.Post("/register", handler.Registration)
+	r.Post("/logout", handler.Logout)
 
 	limit := 5
     window := time.Minute

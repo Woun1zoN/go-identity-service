@@ -126,3 +126,55 @@ func (Server *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(response)
 }
+
+func (Server *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	defer r.Body.Close()
+
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+		return
+	}
+
+	if req.RefreshToken == "" {
+        errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
+        return
+    }
+
+	token, err := jwt.Parse(req.RefreshToken, func(t *jwt.Token) (any, error) {
+		return auth.JwtKey, nil
+	})
+
+	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+		return
+	}
+
+	if !token.Valid {
+		errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
+        return
+    }
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
+        return
+	}
+
+	jti, ok := claims["jti"].(string)
+	if !ok {
+		errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
+        return
+	}
+
+	if err := Server.DB.RevokeRefreshToken(r.Context(), jti); errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(map[string]string{
+        "message": "Successfully logged out",
+    })
+}

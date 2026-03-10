@@ -1,10 +1,12 @@
 package auth
 
 import (
-	"os"
-	"time"
 	"crypto/sha256"
 	"encoding/hex"
+	"os"
+	"time"
+
+	"github.com/Woun1zoN/go-identity-service/internal/models"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -12,9 +14,10 @@ import (
 
 var JwtKey = []byte(os.Getenv("JWT_SECRET"))
 
-func GenerateAccessToken(userID string) (string, error) {
+func GenerateAccessToken(user *models.User) (string, error) {
 	claims := jwt.MapClaims{
-		"user_id": userID,
+		"user_id": user.ID,
+		"role":    user.Role,
 		"exp":     time.Now().Add(15 * time.Minute).Unix(),
 		"iat":     time.Now().Unix(),
 	}

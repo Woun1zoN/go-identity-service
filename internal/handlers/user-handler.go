@@ -55,7 +55,6 @@ func (Server *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
     }
     return auth.JwtKey, nil
     })
-
     if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
 		return
     }
@@ -75,7 +74,7 @@ func (Server *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
         errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
         return
     }
-    userID, ok := claims["user_id"].(string)
+    userIDstr, ok := claims["user_id"].(string)
     if !ok {
         errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
         return
@@ -88,7 +87,6 @@ func (Server *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
 		return
     }
-
     if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
         return
     }
@@ -102,7 +100,26 @@ func (Server *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refresh, newJTI, _, err := auth.GenerateRefreshToken(userID)
+	userID, err := strconv.Atoi(userIDstr)
+    if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+        return
+    }
+	user, err := Server.DB.GetUserByID(r.Context(), userID)
+	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+		return
+	}
+
+	tokenUser := &models.User{
+		ID:   user.ID,
+		Role: user.Role,
+	}
+
+	access, err := auth.GenerateAccessToken(tokenUser)
+	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+		return
+	}
+
+	refresh, newJTI, _, err := auth.GenerateRefreshToken(strconv.Itoa(user.ID))
 	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
 		return
 	}
@@ -110,12 +127,7 @@ func (Server *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	newHash := auth.HashToken(refresh)
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
 
-	if err := Server.DB.InsertRefreshToken(r.Context(), newJTI, userID, newHash, expiresAt); errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
-		return
-	}
-
-	access, err := auth.GenerateAccessToken(userID)
-	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+	if err := Server.DB.InsertRefreshToken(r.Context(), newJTI, strconv.Itoa(user.ID), newHash, expiresAt); errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
 		return
 	}
 
@@ -177,4 +189,24 @@ func (Server *Handler) Logout(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(map[string]string{
         "message": "Successfully logged out",
     })
+}
+
+func (Server *Handler) PromoteUser(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	defer r.Body.Close()
+
+	var req struct {UserID int `json:"user_id"`}
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+		return
+	}
+
+	err = Server.DB.SetRole(r.Context(), req.UserID, "admin")
+	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "User promoted"})
 }

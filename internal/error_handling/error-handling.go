@@ -36,6 +36,7 @@ var Errors = map[string]MapHTTPError {
 	"Unauthorized":    {Error: "unauthorized",          Status: http.StatusUnauthorized,        Message: http.StatusText(http.StatusUnauthorized)},
 	"TooManyRequests": {Error: "too_many_requests",     Status: http.StatusTooManyRequests,     Message: http.StatusText(http.StatusTooManyRequests)},
 	"Conflict":        {Error: "conflict",              Status: http.StatusConflict,            Message: http.StatusText(http.StatusConflict)},
+    "Forbidden":       {Error: "forbidden",             Status: http.StatusForbidden,           Message: http.StatusText(http.StatusForbidden)},
 }
 
 func ErrorEncoding(w http.ResponseWriter, status int, err string, message string, req_id string) {
@@ -59,6 +60,16 @@ func Unauthorized(w http.ResponseWriter, r *http.Request, id string) {
 		"Неавторизованный доступ",
 		id,
 	)
+}
+
+func Forbidden(w http.ResponseWriter, r *http.Request, id string) {
+    ErrorEncoding(
+        w,
+        Errors["Forbidden"].Status,
+        Errors["Forbidden"].Error,
+        "Недостаточно прав",
+        id,
+    )
 }
 
 func HTTPErrors(w http.ResponseWriter, err error, id string) bool {

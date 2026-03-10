@@ -11,6 +11,7 @@ type RefreshToken struct {
 }
 
 type User struct {
-	ID           int
-	PasswordHash string
+    ID           int
+    PasswordHash string
+	Role         string
 }

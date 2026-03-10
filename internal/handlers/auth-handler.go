@@ -89,7 +89,7 @@ func (Server *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, err := auth.GenerateAccessToken(strconv.Itoa(user.ID))
+	accessToken, err := auth.GenerateAccessToken(user)
 	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
 		return
 	}

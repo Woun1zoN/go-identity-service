@@ -53,11 +53,14 @@ func main() {
 
 	// Handlers
 
-	r.Post("/register", handler.Registration)
 	r.Post("/logout", handler.Logout)
 
 	limit := 5
     window := time.Minute
+
+	r.With(func(next http.Handler) http.Handler {
+        return middleware.RateLimit(next, limit, window, rdb)
+	}).Post("/register", handler.Registration)
 
 	r.With(func(next http.Handler) http.Handler {
         return middleware.RateLimit(next, limit, window, rdb)
@@ -66,6 +69,10 @@ func main() {
 	r.With(func(next http.Handler) http.Handler {
         return middleware.RateLimit(next, limit, window, rdb)
     }).Post("/refresh", handler.Refresh)
+
+	r.With(func(next http.Handler) http.Handler {
+        return middleware.RateLimit(next, limit, window, rdb)
+    }).With(middleware.Auth).With(middleware.RequireRole("admin")).Post("/admin/promote", handler.PromoteUser)
 
 	r.With(middleware.Auth).Get("/profile", handler.Profile)
 

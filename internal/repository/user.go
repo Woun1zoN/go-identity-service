@@ -11,7 +11,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, userID int) (*models.U
 	var response models.UserResponse
 	var createdAt time.Time
 
-	err := r.DB.QueryRow(ctx, "SELECT id, email, created_at FROM users WHERE id=$1", userID).Scan(&response.ID, &response.Email, &createdAt)
+	err := r.DB.QueryRow(ctx, "SELECT id, email, created_at, role FROM users WHERE id=$1", userID).Scan(&response.ID, &response.Email, &createdAt, &response.Role)
 	if err != nil {
 		return nil, err
 	}
@@ -32,10 +32,15 @@ func (r *UserRepository) CreateUser(ctx context.Context, email, passwordHash str
 
 func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	var user models.User
-	err := r.DB.QueryRow(ctx, "SELECT id, password_hash FROM users WHERE email = $1",
-		email).Scan(&user.ID, &user.PasswordHash)
+	err := r.DB.QueryRow(ctx, "SELECT id, password_hash, role FROM users WHERE email = $1",
+		email).Scan(&user.ID, &user.PasswordHash, &user.Role)
 	if err != nil {
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (r *UserRepository) SetRole(ctx context.Context, id int, role string) error {
+	_, err := r.DB.Exec(ctx, "UPDATE users SET role = $1 WHERE id = $2", role, id)
+	return err
 }

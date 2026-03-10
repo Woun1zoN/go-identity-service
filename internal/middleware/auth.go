@@ -14,7 +14,10 @@ import (
 
 type contextKey string
 
-const UserIDKey contextKey = "user_id"
+const (
+    UserIDKey contextKey = "user_id"
+    RoleKey   contextKey = "role"
+)
 
 var jwtKey = []byte(os.Getenv("JWT_SECRET"))
 
@@ -49,6 +52,8 @@ func Auth(next http.Handler) http.Handler {
         userID := fmt.Sprintf("%v", claims["user_id"])
 
         ctx := context.WithValue(r.Context(), UserIDKey, userID)
+        ctx = context.WithValue(ctx, RoleKey, claims["role"])
+
         next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

@@ -80,6 +80,14 @@ func (Server *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+	iss, _ := claims["iss"].(string)
+    aud, _ := claims["aud"].(string)
+
+	if iss != "go-identity-service" || aud != "go-api-users" {
+        errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
+        return
+    }
+
 	hash := auth.HashToken(req.RefreshToken)
 
 	storedToken, err := Server.DB.GetRefreshTokenByID(r.Context(), jti)
@@ -156,9 +164,12 @@ func (Server *Handler) Logout(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-	token, err := jwt.Parse(req.RefreshToken, func(t *jwt.Token) (any, error) {
-		return auth.JwtKey, nil
-	})
+	token, err := jwt.Parse(req.RefreshToken, func(t *jwt.Token) (interface{}, error) {
+        if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+            return nil, fmt.Errorf("unexpected signing method")
+        }
+        return auth.JwtKey, nil
+    })
 
 	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
 		return
@@ -174,6 +185,14 @@ func (Server *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
         return
 	}
+
+	iss, _ := claims["iss"].(string)
+    aud, _ := claims["aud"].(string)
+
+	if iss != "go-identity-service" || aud != "go-api-users" {
+        errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
+        return
+    }
 
 	jti, ok := claims["jti"].(string)
 	if !ok {

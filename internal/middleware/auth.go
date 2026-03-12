@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/Woun1zoN/go-identity-service/internal/error_handling"
+    "github.com/Woun1zoN/go-identity-service/internal/auth"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -18,8 +18,6 @@ const (
     UserIDKey contextKey = "user_id"
     RoleKey   contextKey = "role"
 )
-
-var jwtKey = []byte(os.Getenv("JWT_SECRET"))
 
 func Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -35,7 +33,7 @@ func Auth(next http.Handler) http.Handler {
             if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
                 return nil, fmt.Errorf("unexpected signing method")
             }
-            return jwtKey, nil
+            return auth.JwtKey, nil
         })
 
         if err != nil || !token.Valid {
@@ -45,6 +43,14 @@ func Auth(next http.Handler) http.Handler {
 
         claims, ok := token.Claims.(jwt.MapClaims)
         if !ok || claims["user_id"] == nil {
+            errorhandling.Unauthorized(w, r, GetRequestID(r))
+            return
+        }
+
+        iss, _ := claims["iss"].(string)
+        aud, _ := claims["aud"].(string)
+
+        if iss != "go-identity-service" || aud != "go-api-users" {
             errorhandling.Unauthorized(w, r, GetRequestID(r))
             return
         }

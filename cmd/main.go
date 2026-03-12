@@ -5,11 +5,13 @@ import (
 	"log"
 	"net/http"
 	"time"
+	"os"
 
 	"github.com/Woun1zoN/go-identity-service/internal/db"
 	"github.com/Woun1zoN/go-identity-service/internal/repository"
 	"github.com/Woun1zoN/go-identity-service/internal/handlers"
 	"github.com/Woun1zoN/go-identity-service/internal/middleware"
+	"github.com/Woun1zoN/go-identity-service/internal/auth"
 
 	"github.com/go-chi/chi"
 	"github.com/go-playground/validator/v10"
@@ -23,13 +25,24 @@ func main() {
 	r := chi.NewRouter()
 	ctx := context.Background()
 	validate := validator.New()
-	godotenv.Load()
+
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		log.Fatal("Have little problems...")
+	}
+
+	if err := auth.GetJWTKey(); err != nil {
+        log.Fatal(err)
+    }
+
+	limit := 5
+    window := time.Minute
 
 	rdb := redis.NewClient(&redis.Options{
         Addr:     "localhost:6379",
         Password: "",
         DB:       0,
     })
+	defer rdb.Close()
 
 	// Middleware
 
@@ -54,9 +67,6 @@ func main() {
 	// Handlers
 
 	r.Post("/logout", handler.Logout)
-
-	limit := 5
-    window := time.Minute
 
 	r.With(func(next http.Handler) http.Handler {
         return middleware.RateLimit(next, limit, window, rdb)

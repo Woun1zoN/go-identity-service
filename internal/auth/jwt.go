@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"os"
 	"time"
+	"fmt"
 
 	"github.com/Woun1zoN/go-identity-service/internal/models"
 
@@ -12,12 +13,23 @@ import (
 	"github.com/google/uuid"
 )
 
-var JwtKey = []byte(os.Getenv("JWT_SECRET"))
+var JwtKey []byte
+
+func GetJWTKey() error {
+    key := os.Getenv("JWT_SECRET")
+    if key == "" {
+        return fmt.Errorf("Секретов нет!")
+    }
+    JwtKey = []byte(key)
+	return nil
+}
 
 func GenerateAccessToken(user *models.User) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": user.ID,
 		"role":    user.Role,
+		"iss":     "go-identity-service",
+        "aud":     "go-api-users",
 		"exp":     time.Now().Add(15 * time.Minute).Unix(),
 		"iat":     time.Now().Unix(),
 	}
@@ -33,6 +45,8 @@ func GenerateRefreshToken(userID string) (string, string, string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"jti":     refreshID,
+		"iss":     "go-identity-service",
+		"aud":     "go-api-users", 
 		"exp":     time.Now().Add(7 * 24 * time.Hour).Unix(),
 		"iat":     time.Now().Unix(),
 	}

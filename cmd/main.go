@@ -44,6 +44,10 @@ func main() {
     })
 	defer rdb.Close()
 
+	rateLimitMiddleware := func(next http.Handler) http.Handler {
+        return middleware.RateLimit(next, limit, window, rdb)
+	}
+
 	// Middleware
 
 	r.Use(middleware.RequestID)
@@ -68,21 +72,10 @@ func main() {
 
 	r.Post("/logout", handler.Logout)
 
-	r.With(func(next http.Handler) http.Handler {
-        return middleware.RateLimit(next, limit, window, rdb)
-	}).Post("/register", handler.Registration)
-
-	r.With(func(next http.Handler) http.Handler {
-        return middleware.RateLimit(next, limit, window, rdb)
-	}).Post("/login", handler.Login)
-
-	r.With(func(next http.Handler) http.Handler {
-        return middleware.RateLimit(next, limit, window, rdb)
-    }).Post("/refresh", handler.Refresh)
-
-	r.With(func(next http.Handler) http.Handler {
-        return middleware.RateLimit(next, limit, window, rdb)
-    }).With(middleware.Auth).With(middleware.RequireRole("admin")).Post("/admin/promote", handler.PromoteUser)
+	r.With(rateLimitMiddleware).Post("/register", handler.Registration)
+	r.With(rateLimitMiddleware).Post("/login", handler.Login)
+	r.With(rateLimitMiddleware).Post("/refresh", handler.Refresh)
+	r.With(rateLimitMiddleware).With(middleware.Auth).With(middleware.RequireRole("admin")).Post("/admin/promote", handler.PromoteUser)
 
 	r.With(middleware.Auth).Get("/profile", handler.Profile)
 

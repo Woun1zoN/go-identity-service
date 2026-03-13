@@ -12,6 +12,7 @@ import (
 	"github.com/Woun1zoN/go-identity-service/internal/handlers"
 	"github.com/Woun1zoN/go-identity-service/internal/middleware"
 	"github.com/Woun1zoN/go-identity-service/internal/auth"
+	"github.com/Woun1zoN/go-identity-service/internal/server"
 
 	"github.com/go-chi/chi"
 	"github.com/go-playground/validator/v10"
@@ -23,7 +24,8 @@ func main() {
 	// Variables
 
 	r := chi.NewRouter()
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	defer cancel()
 	validate := validator.New()
 
 	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
@@ -63,7 +65,7 @@ func main() {
 	}
 	defer dbServer.DB.Close()
 
-	log.Println("Подключен к БД")
+	log.Println("Connected to DB")
 
 	userRepo := repository.NewUserRepository(dbServer.DB)
     handler := handlers.NewHandler(userRepo, validate)
@@ -81,9 +83,5 @@ func main() {
 
 	// Starting
 
-	log.Println("Сервер запущен на http://localhost:8080")
-	err = http.ListenAndServe(":8080", r)
-	if err != nil {
-		log.Fatal("Сервер словил грустного:", err)
-	}
+	server.Run(ctx, r)
 }

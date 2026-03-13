@@ -3,25 +3,51 @@ package main
 import (
 	"context"
 	"log"
-	"net/http"
+	"time"
+	"os"
 
 	"github.com/Woun1zoN/go-identity-service/internal/db"
+	"github.com/Woun1zoN/go-identity-service/internal/repository"
 	"github.com/Woun1zoN/go-identity-service/internal/handlers"
+	"github.com/Woun1zoN/go-identity-service/internal/middleware"
+	"github.com/Woun1zoN/go-identity-service/internal/auth"
+	"github.com/Woun1zoN/go-identity-service/internal/server"
 
 	"github.com/go-chi/chi"
 	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
 	// Variables
 
 	r := chi.NewRouter()
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	defer cancel()
 	validate := validator.New()
-	godotenv.Load()
+
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		log.Fatal("Have little problems...")
+	}
+
+	if err := auth.GetJWTKey(); err != nil {
+        log.Fatal(err)
+    }
+
+	rdb := redis.NewClient(&redis.Options{
+        Addr:     "localhost:6379",
+        Password: "",
+        DB:       0,
+    })
+	defer rdb.Close()
 
 	// Middleware
+
+	r.Use(middleware.RequestID)
+	r.Use(middleware.Recovery)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Context)
 
 	// Connection DB
 
@@ -31,20 +57,23 @@ func main() {
 	}
 	defer dbServer.DB.Close()
 
-	log.Println("Подключен к БД")
+	log.Println("Connected to DB")
 
-	dbHandler := handlers.NewDBHandler(dbServer, validate)
+	userRepo := repository.NewUserRepository(dbServer.DB)
+    handler := handlers.NewHandler(userRepo, validate)
 
 	// Handlers
 
-	r.Post("/register", dbHandler.Registration)
-	r.Post("/login", dbHandler.Login)
+	r.Post("/logout", handler.Logout)
+
+	r.With(middleware.RateLimiter(3, time.Minute, rdb)).Post("/register", handler.Registration)
+	r.With(middleware.RateLimiter(5, time.Minute, rdb)).Post("/login", handler.Login)
+	r.With(middleware.RateLimiter(10, time.Minute, rdb)).Post("/refresh", handler.Refresh)
+
+	r.With(middleware.RateLimiter(1, time.Minute, rdb)).With(middleware.Auth).With(middleware.RequireRole("admin")).Post("/admin/promote", handler.PromoteUser)
+	r.With(middleware.Auth).Get("/profile", handler.Profile)
 
 	// Starting
 
-	log.Println("Сервер запущен на http://localhost:8080")
-	err = http.ListenAndServe(":8080", r)
-	if err != nil {
-		log.Fatal("Сервер словил грустного:", err)
-	}
+	server.Run(ctx, r)
 }

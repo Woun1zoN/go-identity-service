@@ -68,3 +68,9 @@ func RateLimit(next http.Handler, limit int, window time.Duration, rdb *redis.Cl
         next.ServeHTTP(w, r)
     })
 }
+
+func RateLimiter(limit int, window time.Duration, rdb *redis.Client) func(http.Handler) http.Handler {
+    return func(next http.Handler) http.Handler {
+        return RateLimit(next, limit, window, rdb)
+    }
+}

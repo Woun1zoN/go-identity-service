@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log"
-	"net/http"
 	"time"
 	"os"
 
@@ -36,19 +35,12 @@ func main() {
         log.Fatal(err)
     }
 
-	limit := 5
-    window := time.Minute
-
 	rdb := redis.NewClient(&redis.Options{
         Addr:     "localhost:6379",
         Password: "",
         DB:       0,
     })
 	defer rdb.Close()
-
-	rateLimitMiddleware := func(next http.Handler) http.Handler {
-        return middleware.RateLimit(next, limit, window, rdb)
-	}
 
 	// Middleware
 
@@ -74,11 +66,11 @@ func main() {
 
 	r.Post("/logout", handler.Logout)
 
-	r.With(rateLimitMiddleware).Post("/register", handler.Registration)
-	r.With(rateLimitMiddleware).Post("/login", handler.Login)
-	r.With(rateLimitMiddleware).Post("/refresh", handler.Refresh)
-	r.With(rateLimitMiddleware).With(middleware.Auth).With(middleware.RequireRole("admin")).Post("/admin/promote", handler.PromoteUser)
+	r.With(middleware.RateLimiter(3, time.Minute, rdb)).Post("/register", handler.Registration)
+	r.With(middleware.RateLimiter(5, time.Minute, rdb)).Post("/login", handler.Login)
+	r.With(middleware.RateLimiter(10, time.Minute, rdb)).Post("/refresh", handler.Refresh)
 
+	r.With(middleware.RateLimiter(1, time.Minute, rdb)).With(middleware.Auth).With(middleware.RequireRole("admin")).Post("/admin/promote", handler.PromoteUser)
 	r.With(middleware.Auth).Get("/profile", handler.Profile)
 
 	// Starting

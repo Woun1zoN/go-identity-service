@@ -3,35 +3,28 @@ package handlers
 import (
 	"net/http"
 	"encoding/json"
-	"errors"
-	"strconv"
-	"time"
 
 	"github.com/Woun1zoN/go-identity-service/internal/models"
 	"github.com/Woun1zoN/go-identity-service/internal/error_handling"
 	"github.com/Woun1zoN/go-identity-service/internal/middleware"
-	"github.com/Woun1zoN/go-identity-service/internal/auth"
-	"github.com/Woun1zoN/go-identity-service/internal/repository"
+	"github.com/Woun1zoN/go-identity-service/internal/service"
 
-	"golang.org/x/crypto/bcrypt"
-
-	"github.com/jackc/pgx/v5"
 	"github.com/go-playground/validator/v10"
 )
 
 type Handler struct {
-	DB *repository.UserRepository
-	Validate *validator.Validate
+	Service     *service.Service
+	Validate    *validator.Validate
 }
 
-func NewHandler(userRepo *repository.UserRepository, validate *validator.Validate) *Handler {
+func NewHandler(service *service.Service, validate *validator.Validate) *Handler {
 	return &Handler{
-		DB: userRepo,
-		Validate: validate,
+		Service:     service,
+		Validate:    validate,
 	}
 }
 
-func (Server *Handler) Registration(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Registration(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	defer r.Body.Close()
 
@@ -40,30 +33,20 @@ func (Server *Handler) Registration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := Server.Validate.Struct(input); errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+	if err := h.Validate.Struct(input); errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
 		return
 	}
 
-	passHash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	response, err := h.Service.RegisterUser(r.Context(), input.Email, input.Password)
 	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
 		return
-	}
-
-	userID, err := Server.DB.CreateUser(r.Context(), input.Email, string(passHash))
-	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
-		return
-	}
-
-	response := models.UserResponse{
-		ID:    userID,
-		Email: input.Email,
 	}
 
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-func (Server *Handler) Login(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	defer r.Body.Close()
 
@@ -72,41 +55,13 @@ func (Server *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := Server.Validate.Struct(input); errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
+	if err := h.Validate.Struct(input); errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
 		return
 	}
 
-	user, err := Server.DB.GetUserByEmail(r.Context(), input.Email)
-	if errors.Is(err, pgx.ErrNoRows) {
-		errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
-		return
-	} else if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
-		return
-	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password)); err != nil {
-		errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
-		return
-	}
-
-	accessToken, err := auth.GenerateAccessToken(user)
+	response, err := h.Service.Login(r.Context(), input.Email, input.Password)
 	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
 		return
-	}
-
-	refreshToken, refreshID, refreshHash, err := auth.GenerateRefreshToken(strconv.Itoa(user.ID))
-	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
-		return
-	}
-
-	expiresAt := time.Now().Add(7 * 24 * time.Hour)
-	if err := Server.DB.InsertRefreshToken(r.Context(), refreshID, strconv.Itoa(user.ID), refreshHash, expiresAt); errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
-		return
-	}
-
-	response := models.TokenResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
 	}
 
 	_ = json.NewEncoder(w).Encode(response)

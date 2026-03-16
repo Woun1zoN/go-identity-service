@@ -12,6 +12,7 @@ import (
 	"github.com/Woun1zoN/go-identity-service/internal/middleware"
 	"github.com/Woun1zoN/go-identity-service/internal/auth"
 	"github.com/Woun1zoN/go-identity-service/internal/server"
+	"github.com/Woun1zoN/go-identity-service/internal/service"
 
 	"github.com/go-chi/chi"
 	"github.com/go-playground/validator/v10"
@@ -60,7 +61,8 @@ func main() {
 	log.Println("Connected to DB")
 
 	userRepo := repository.NewUserRepository(dbServer.DB)
-    handler := handlers.NewHandler(userRepo, validate)
+	service := service.NewService(userRepo)
+    handler := handlers.NewHandler(service, validate)
 
 	// Handlers
 

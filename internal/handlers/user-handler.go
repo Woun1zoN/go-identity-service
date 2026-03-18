@@ -43,7 +43,7 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
         return
 	}
 
-	response, err := h.Service.Refresh(r.Context(), req.RefreshToken)
+	response, err := h.Service.Refresh(r.Context(), req.RefreshToken, w, r)
 	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
 		return
 	}

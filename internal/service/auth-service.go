@@ -17,11 +17,13 @@ import (
 
 type Service struct {
 	UserRepo *repository.UserRepository
+	Auth     *auth.AuthConfig
 }
 
-func NewService(userRepo *repository.UserRepository) *Service {
+func NewService(userRepo *repository.UserRepository, authService *auth.AuthConfig) *Service {
 	return &Service{
 		UserRepo: userRepo,
+		Auth:     authService,
 	}
 }
 
@@ -55,12 +57,12 @@ func (s *Service) Login(ctx context.Context, email, password string) (*models.To
 		return nil, errors.New("unauthorized")
 	}
 
-	accessToken, err := auth.GenerateAccessToken(user)
+	accessToken, err := s.Auth.GenerateAccessToken(user)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, refreshID, refreshHash, err := auth.GenerateRefreshToken(strconv.Itoa(user.ID))
+	refreshToken, refreshID, refreshHash, err := s.Auth.GenerateRefreshToken(strconv.Itoa(user.ID))
 	if err != nil {
 		return nil, err
 	}

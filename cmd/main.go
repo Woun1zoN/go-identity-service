@@ -32,9 +32,13 @@ func main() {
 		log.Fatal("Have little problems...")
 	}
 
-	if err := auth.GetJWTKey(); err != nil {
-        log.Fatal(err)
-    }
+	key := os.Getenv("JWT_SECRET")
+	if key == "" {
+		log.Fatal("JWT_SECRET not set")
+	}
+
+	jwtKey := []byte(key)
+	authService := &auth.AuthConfig{JWTKey: jwtKey}
 
 	rdb := redis.NewClient(&redis.Options{
         Addr:     "localhost:6379",
@@ -52,7 +56,7 @@ func main() {
 
 	// Connection DB
 
-	dbServer, err := db.InitDB(ctx)
+	dbServer, err := db.InitDB(context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -61,7 +65,7 @@ func main() {
 	log.Println("Connected to DB")
 
 	userRepo := repository.NewUserRepository(dbServer.DB)
-	service := service.NewService(userRepo)
+	service := service.NewService(userRepo, authService)
     handler := handlers.NewHandler(service, validate)
 
 	// Handlers
@@ -72,8 +76,8 @@ func main() {
 	r.With(middleware.RateLimiter(5, time.Minute, rdb)).Post("/login", handler.Login)
 	r.With(middleware.RateLimiter(10, time.Minute, rdb)).Post("/refresh", handler.Refresh)
 
-	r.With(middleware.RateLimiter(1, time.Minute, rdb)).With(middleware.Auth).With(middleware.RequireRole("admin")).Post("/admin/promote", handler.PromoteUser)
-	r.With(middleware.Auth).Get("/profile", handler.Profile)
+	r.With(middleware.RateLimiter(1, time.Minute, rdb)).With(middleware.Auth(authService)).With(middleware.RequireRole("admin")).Post("/admin/promote", handler.PromoteUser)
+	r.With(middleware.Auth(authService)).Get("/profile", handler.Profile)
 
 	// Starting
 

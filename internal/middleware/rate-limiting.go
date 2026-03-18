@@ -13,9 +13,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-var ctx = context.Background()
-
-func AllowRequest(rdb *redis.Client, userID string, limit int, window time.Duration) (bool, error) {
+func AllowRequest(ctx context.Context, rdb *redis.Client, userID string, limit int, window time.Duration) (bool, error) {
     now := time.Now().Unix()
     key := "request:" + userID
 
@@ -53,7 +51,10 @@ func RateLimit(next http.Handler, limit int, window time.Duration, rdb *redis.Cl
         ip = strings.TrimSpace(ip)
     
         userID := ip
-        allowed, err := AllowRequest(rdb, userID, limit, window)
+        if uid := r.Context().Value(UserIDKey); uid != nil {
+            userID = fmt.Sprintf("%v", uid)
+        }
+        allowed, err := AllowRequest(r.Context(), rdb, userID, limit, window)
 
         if errorhandling.HTTPErrors(w, err, GetRequestID(r)) {
             return

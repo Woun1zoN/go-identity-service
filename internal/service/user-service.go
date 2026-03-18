@@ -6,9 +6,12 @@ import (
 	"errors"
 	"time"
 	"strconv"
+	"net/http"
 
 	"github.com/Woun1zoN/go-identity-service/internal/models"
 	"github.com/Woun1zoN/go-identity-service/internal/auth"
+	"github.com/Woun1zoN/go-identity-service/internal/error_handling"
+	"github.com/Woun1zoN/go-identity-service/internal/middleware"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -17,12 +20,12 @@ func (s *Service) GetUserByID(ctx context.Context, id int) (*models.UserResponse
 	return s.UserRepo.GetUserByID(ctx, id)
 }
 
-func (s *Service) Refresh(ctx context.Context, refreshToken string) (*models.TokenResponse, error) {
+func (s *Service) Refresh(ctx context.Context, refreshToken string, w http.ResponseWriter, r *http.Request) (*models.TokenResponse, error) {
 	token, err := jwt.Parse(refreshToken, func(t *jwt.Token) (interface{}, error) {
     if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
         return nil, fmt.Errorf("unexpected signing method")
     }
-    return auth.JwtKey, nil
+    return s.Auth, nil
     })
     if err != nil {
 		return nil, err
@@ -32,13 +35,33 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (*models.Tok
         return nil, errors.New("invalid token")
     }
 
-	claims := token.Claims.(jwt.MapClaims)
+	claims, ok := token.Claims.(jwt.MapClaims)
+    if !ok {
+        errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
+        return nil, fmt.Errorf("invalid token claims")
+	}
 
-    jti := claims["jti"].(string)
-    userIDstr := claims["user_id"].(string)
+    jti, ok := claims["jti"].(string)
+	if !ok {
+        errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
+        return nil, fmt.Errorf("invalid token")
+    }
+    userIDstr, ok := claims["user_id"].(string)
+	if !ok {
+        errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
+        return nil, fmt.Errorf("invalid token")
+    }
 
-	iss, _ := claims["iss"].(string)
-    aud, _ := claims["aud"].(string)
+	iss, ok := claims["iss"].(string)
+	if !ok {
+        errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
+        return nil, fmt.Errorf("invalid token")
+    }
+    aud, ok := claims["aud"].(string)
+	if !ok {
+        errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
+        return nil, fmt.Errorf("invalid token")
+    }
 
 	if iss != "go-identity-service" || aud != "go-api-users" {
         return nil, errors.New("invalid issuer")
@@ -74,12 +97,12 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (*models.Tok
 		Role: user.Role,
 	}
 
-	access, err := auth.GenerateAccessToken(tokenUser)
+	access, err := s.Auth.GenerateAccessToken(tokenUser)
 	if err != nil {
 		return nil, err
 	}
 
-	refresh, newJTI, _, err := auth.GenerateRefreshToken(strconv.Itoa(user.ID))
+	refresh, newJTI, _, err := s.Auth.GenerateRefreshToken(strconv.Itoa(user.ID))
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +129,7 @@ func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method")
 		}
-		return auth.JwtKey, nil
+		return s.Auth, nil
 	})
 	if err != nil {
 		return err

@@ -13,18 +13,20 @@ import (
 	"github.com/google/uuid"
 )
 
-var JwtKey []byte
+type AuthConfig struct {
+    JWTKey []byte
+}
 
-func GetJWTKey() error {
+func (auth *AuthConfig) GetJWTKey() error {
     key := os.Getenv("JWT_SECRET")
     if key == "" {
         return fmt.Errorf("Секретов нет!")
     }
-    JwtKey = []byte(key)
+    auth.JWTKey = []byte(key)
 	return nil
 }
 
-func GenerateAccessToken(user *models.User) (string, error) {
+func (auth *AuthConfig) GenerateAccessToken(user *models.User) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": user.ID,
 		"role":    user.Role,
@@ -36,10 +38,10 @@ func GenerateAccessToken(user *models.User) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	return token.SignedString(JwtKey)
+	return token.SignedString(auth.JWTKey)
 }
 
-func GenerateRefreshToken(userID string) (string, string, string, error) {
+func (auth *AuthConfig) GenerateRefreshToken(userID string) (string, string, string, error) {
 	refreshID := uuid.NewString()
 
 	claims := jwt.MapClaims{
@@ -51,9 +53,9 @@ func GenerateRefreshToken(userID string) (string, string, string, error) {
 		"iat":     time.Now().Unix(),
 	}
 
-	singing := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signing := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	token, err := singing.SignedString(JwtKey)
+	token, err := signing.SignedString(auth.JWTKey)
 	if err != nil {
 		return "", "", "", err
 	}

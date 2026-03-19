@@ -25,7 +25,7 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string, w http.Respo
     if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
         return nil, fmt.Errorf("unexpected signing method")
     }
-    return s.Auth, nil
+    return s.Auth.JWTKey, nil
     })
     if err != nil {
 		return nil, err
@@ -129,7 +129,7 @@ func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method")
 		}
-		return s.Auth, nil
+		return s.Auth.JWTKey, nil
 	})
 	if err != nil {
 		return err

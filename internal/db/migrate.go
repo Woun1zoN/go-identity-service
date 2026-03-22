@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func (s *DBServer) Migrations(ctx context.Context) error {
+func (s *DBServer) RunMigrations(ctx context.Context) error {
 	usersTable := `
 	CREATE TABLE IF NOT EXISTS users (
 		id SERIAL PRIMARY KEY,

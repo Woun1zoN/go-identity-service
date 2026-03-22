@@ -64,7 +64,7 @@ func main() {
 
 	log.Println("Connected to DB")
 
-	err = dbServer.Migrations(context.Background())
+	err = dbServer.RunMigrations(context.Background())
     if err != nil {
 		log.Fatalf("Migration error: %v", err)
     }

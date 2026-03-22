@@ -23,7 +23,7 @@ func InitDB(ctx context.Context) (*DBServer, error) {
 
 	pool, err := pgxpool.New(ctx, conn)
 	if err != nil {
-		return nil, fmt.Errorf("Нет подключения к БД: %w", err)
+		return nil, fmt.Errorf("No connection to DB: %w", err)
 	}
 
 	ServerDB := &DBServer{

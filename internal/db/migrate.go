@@ -17,7 +17,7 @@ func (s *DBServer) Migrations(ctx context.Context) error {
 
 	_, err := s.DB.Exec(ctx, usersTable)
 	if err != nil {
-		return fmt.Errorf("ошибка создания таблицы users: %w", err)
+		return fmt.Errorf("error creating users table: %w", err)
 	}
 
 	tokensTable := `
@@ -32,7 +32,7 @@ func (s *DBServer) Migrations(ctx context.Context) error {
 
 	_, err = s.DB.Exec(ctx, tokensTable)
 	if err != nil {
-		return fmt.Errorf("ошибка создания таблицы refresh_tokens: %w", err)
+		return fmt.Errorf("error creating refresh_tokens table: %w", err)
 	}
 
 	return nil

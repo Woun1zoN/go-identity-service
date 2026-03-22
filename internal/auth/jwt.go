@@ -20,7 +20,7 @@ type AuthConfig struct {
 func (auth *AuthConfig) GetJWTKey() error {
     key := os.Getenv("JWT_SECRET")
     if key == "" {
-        return fmt.Errorf("Секретов нет!")
+        return fmt.Errorf("There are no secrets!")
     }
     auth.JWTKey = []byte(key)
 	return nil

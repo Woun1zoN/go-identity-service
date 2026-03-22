@@ -57,7 +57,7 @@ func Unauthorized(w http.ResponseWriter, r *http.Request, id string) {
 		w,
 		Errors["Unauthorized"].Status,
 		Errors["Unauthorized"].Error,
-		"Неавторизованный доступ",
+		"Unauthorized access",
 		id,
 	)
 }
@@ -67,7 +67,7 @@ func Forbidden(w http.ResponseWriter, r *http.Request, id string) {
         w,
         Errors["Forbidden"].Status,
         Errors["Forbidden"].Error,
-        "Недостаточно прав",
+        "Insufficient permissions",
         id,
     )
 }
@@ -82,59 +82,59 @@ func HTTPErrors(w http.ResponseWriter, err error, id string) bool {
 
     if errors.As(err, &syntaxErr) {
         log.Printf("Error [%s] | %v", id, err)
-        ErrorEncoding(w, Errors["BadJSON"].Status, Errors["BadJSON"].Error, "Недопустимый синтаксис JSON", id)
+        ErrorEncoding(w, Errors["BadJSON"].Status, Errors["BadJSON"].Error, "Invalid JSON syntax", id)
         return true
     }
     if errors.As(err, &typeErr) {
         log.Printf("Error [%s] | %v", id, err)
-        ErrorEncoding(w, Errors["BadJSON"].Status, Errors["BadJSON"].Error, "Несоответствие типов JSON", id)
+        ErrorEncoding(w, Errors["BadJSON"].Status, Errors["BadJSON"].Error, "JSON type mismatch", id)
         return true
     }
 
     if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
         log.Printf("Error [%s] | %v", id, err)
-        ErrorEncoding(w, Errors["Conflict"].Status, Errors["Conflict"].Error, "Конфликт данных", id)
+        ErrorEncoding(w, Errors["Conflict"].Status, Errors["Conflict"].Error, "Data conflict", id)
         return true
     }
 
     switch {
     case errors.Is(err, context.DeadlineExceeded):
-        log.Printf("Error [%s] | Время ожидания запроса истекло: %v", id, err)
-        ErrorEncoding(w, Errors["Timeout"].Status, Errors["Timeout"].Error, "Время ожидания запроса истекло", id)
+        log.Printf("Error [%s] | The request timeout has expired: %v", id, err)
+        ErrorEncoding(w, Errors["Timeout"].Status, Errors["Timeout"].Error, "The request timeout has expired", id)
         return true
 
     case errors.Is(err, pgx.ErrNoRows),
 		errors.Is(err, ErrNoRowsAffected):
-        log.Printf("Error [%s] | Не найдено: %v", id, err)
-        ErrorEncoding(w, Errors["NotFound"].Status, Errors["NotFound"].Error, "Не найдено", id)
+        log.Printf("Error [%s] | Not found: %v", id, err)
+        ErrorEncoding(w, Errors["NotFound"].Status, Errors["NotFound"].Error, "Not found", id)
         return true
 
     case errors.Is(err, io.EOF):
-        log.Printf("Error [%s] | Пустое тело запроса: %v", id, err)
-        ErrorEncoding(w, Errors["BadJSON"].Status, Errors["BadJSON"].Error, "Пустое тело запроса", id)
+        log.Printf("Error [%s] | Empty request body: %v", id, err)
+        ErrorEncoding(w, Errors["BadJSON"].Status, Errors["BadJSON"].Error, "Empty request body", id)
         return true
 
     case errors.Is(err, strconv.ErrSyntax), errors.Is(err, strconv.ErrRange):
-        log.Printf("Error [%s] | Недопустимое значение ввода: %v", id, err)
-        ErrorEncoding(w, Errors["ErrorValidation"].Status, Errors["ErrorValidation"].Error, "Недопустимое значение ввода", id)
+        log.Printf("Error [%s] | Invalid input: %v", id, err)
+        ErrorEncoding(w, Errors["ErrorValidation"].Status, Errors["ErrorValidation"].Error, "Invalid input", id)
         return true
 
     case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword),
         errors.Is(err, jwt.ErrTokenMalformed),
         errors.Is(err, jwt.ErrTokenExpired),
         errors.Is(err, jwt.ErrTokenNotValidYet):
-        log.Printf("Error [%s] | Неавторизованный доступ: %v", id, err)
-        ErrorEncoding(w, Errors["Unauthorized"].Status, Errors["Unauthorized"].Error, "Неавторизованный доступ", id)
+        log.Printf("Error [%s] | Unauthorized access: %v", id, err)
+        ErrorEncoding(w, Errors["Unauthorized"].Status, Errors["Unauthorized"].Error, "Unauthorized access", id)
         return true
 
     case errors.Is(err, ErrTooManyRequests):
-        log.Printf("Error [%s] | Превышен лимит запросов: %v", id, err)
-        ErrorEncoding(w, Errors["TooManyRequests"].Status, Errors["TooManyRequests"].Error, "Превышен лимит запросов", id)
+        log.Printf("Error [%s] | The request limit has been exceeded: %v", id, err)
+        ErrorEncoding(w, Errors["TooManyRequests"].Status, Errors["TooManyRequests"].Error, "The request limit has been exceeded", id)
         return true
 
     default:
-        log.Printf("Error [%s] | Внутренняя ошибка сервера: %v", id, err)
-        ErrorEncoding(w, Errors["Internal"].Status, Errors["Internal"].Error, "Внутренняя ошибка сервера", id)
+        log.Printf("Error [%s] | Internal server error: %v", id, err)
+        ErrorEncoding(w, Errors["Internal"].Status, Errors["Internal"].Error, "Internal server error", id)
         return true
     }
 }

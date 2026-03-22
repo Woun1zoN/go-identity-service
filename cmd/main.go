@@ -64,6 +64,11 @@ func main() {
 
 	log.Println("Connected to DB")
 
+	err = dbServer.Migrations(context.Background())
+    if err != nil {
+		log.Fatalf("Migration error: %v", err)
+    }
+
 	userRepo := repository.NewUserRepository(dbServer.DB)
 	service := service.NewService(userRepo, authService)
     handler := handlers.NewHandler(service, validate)

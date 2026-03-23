@@ -190,4 +190,4 @@ docker run -d --name redis -p 6379:6379 redis
 ## 🔹 License & Contacts
 This project is licensed under the [**MIT License**](LICENSE) © 2026 Wᴏᴜɴ†ᴢᴏN メ
 ### Contact me:
-[![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/users/1351287706164006982) [![Telegram](https://img.shields.io/badge/Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)](https://web.telegram.org/k/#@WountzoN)
+[![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/users/1351287706164006982) [![Telegram](https://img.shields.io/badge/Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/WountzoN)

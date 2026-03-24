@@ -85,7 +85,7 @@ curl -X POST http://localhost:8080/login \
 curl -X GET http://localhost:8080/profile \
 -H "Authorization: Bearer <AccessToken>"
 ```
-### Full API examples (curl and Postman): [API Documentation](api.md)
+### Full API examples (curl and Postman): [API Documentation](https://github.com/Woun1zoN/go-identity-service/blob/main/documentation/api.md)
 ---
 ## 🔹 Project Structure
 ```bash

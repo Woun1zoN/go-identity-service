@@ -1,14 +1,4 @@
-# 🔸 API Documentation
-
-## 🔻 Navigation
-   * [**API Endpoint Overview**](#api-endpoint-overview)
-   * [**API Usage (cURL)**](#api-usage-curl)
-      * [**Endpoint `/register`**](#post-register)
-      * [**Endpoint `/login`**](#post-login)
-      * [**Endpoint `/profile`**](#get-profile)
-      * [**Endpoint `/refresh`**](#post-refresh)
-      * [**Endpoint `/logout`**](#post-logout)
-      * [**Endpoint `/admin/promote`**](#post-admin-promote)
+<h1 align="center">🔸 API Documentation</h1>
 
 ## 🔻 API Endpoint Overview
 | Endpoint        | Method | Action                                      | Rate Limit               |

@@ -23,6 +23,7 @@ A Go-based authentication and **identity service** with JWT, refresh token rotat
   <li><b>Graceful shutdown</b></li>
   <li><b>Centralized error handling</b></li>
   <li><b>Clean architecture</b> with a separate service layer</li>
+  <li><b>Migration DB tables</b></li>
 </ul>
 
 ## 🔹 Tech Stack
@@ -30,62 +31,66 @@ A Go-based authentication and **identity service** with JWT, refresh token rotat
 
 ## 🔹 Installation
 ```bash
-git clone https://github.com/Woun1zoN/go-identity-service.git # Cloning a repository
+# Cloning the repository
+git clone https://github.com/Woun1zoN/go-identity-service.git
 cd go-identity-service
-cp .env.example .env                                          # Edit the .env file to reflect your settings
 
-docker run -d --name redis -p 6379:6379 redis                 # Starting a Redis container
+# Create your own environment file
+cp .env.example .env
+# Edit .env to reflect your settings
 
-go mod tidy                                                   # Dependency check
-go run cmd/main.go                                            # Starting service
+# Install dependencies
+go mod tidy
+
+# Build and start all containers
+docker-compose up --build
 ```
 
 ## 🔹 Usage
 ### Startup Logs
 ```bash
-2023/12/01 12:00:00 Connected to DB
-2023/12/01 12:00:00 Server started on http://localhost:8080
+app-1    | 2023/12/01 12:00:00 Connected to DB
+app-1    | 2023/12/01 12:00:00 Server started on http://localhost:8080
 ```
 ---
-### CURL Requests Example
-#### Endpoint `/register`
+### CURL Requests Example ([Full API Documentation](https://github.com/Woun1zoN/go-identity-service/blob/main/documentation/api.md))
+#### 🟡 POST `/register`
+
+##### CURL Request:
 ```bash
-# Request:
 curl -X POST http://localhost:8080/register \
 -H "Content-Type: application/json" \
 -d '{
   "email": "test@example.com",
   "password": "supersecret"
 }'
-
-# Response:
+```
+##### Response:
+```json
 {
-  "ID": 1,
-  "Email": "test@example.com"
+  "id": 1,
+  "email": "test@example.com",
+  "role": "user"
 }
 ```
-#### Endpoint `/login`
+#### 🟡 POST `/login`
+
+##### CURL Request:
 ```bash
-# Request:
 curl -X POST http://localhost:8080/login \
 -H "Content-Type: application/json" \
 -d '{
   "email": "test@example.com",
   "password": "supersecret"
 }'
-
-# Response:
+```
+##### Response:
+```json
 {
-  "AccessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIx...",
-  "RefreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJnby..."
+  "access_token": "access_token",
+  "refresh_token": "refresh_token"
 }
 ```
-#### Protected route example
-```bash
-curl -X GET http://localhost:8080/profile \
--H "Authorization: Bearer <AccessToken>"
-```
-### Full API examples (curl and Postman): [API Documentation](https://github.com/Woun1zoN/go-identity-service/blob/main/documentation/api.md)
 ---
 ## 🔹 Project Structure
 ```bash
@@ -123,7 +128,6 @@ go-identity-service
 │   └── service
 │       ├── auth-service.go      # authentication business logic
 │       └── user-service.go      # business logic for working with users
-├── .env                         # environment variables
 ├── go.mod                       # go dependencies and modules
 └── go.sum
 ```
@@ -158,19 +162,17 @@ go-identity-service
 # PostgreSQL
 DB_USER=your_db_user       # database username
 DB_PASSWORD=your_db_pass   # password
-DB_HOST=localhost          # host
-DB_PORT=5432               # PostgreSQL port
 DB_NAME=your_db_name       # database name
 
 # JWT
-JWT_SECRET=changeme        # token signing secret (you can leave it random)
+JWT_SECRET=changeme        # token signing secret (should be strong)
 ```
 ---
 ### Redis & Rate Limiting
-#### Redis Configuration (in `main.go`)
+#### Redis Configuration (from [main.go](https://github.com/Woun1zoN/go-identity-service/blob/main/cmd/main.go))
 ```go
 rdb := redis.NewClient(&redis.Options{
-    Addr:     "localhost:6379",
+    Addr:     "redis:6379",
     Password: "",
     DB:       0,
 })
@@ -182,10 +184,6 @@ rdb := redis.NewClient(&redis.Options{
 | `/login`         | 5 / minute  | open endpoint              |
 | `/refresh`       | 10 / minute | open endpoint              |
 | `/admin/promote` | 1 / minute  | requires auth + admin role |
-#### Starting a Redis container:
-```bash
-docker run -d --name redis -p 6379:6379 redis
-```
 ---
 ## 🔹 License & Contacts
 This project is licensed under the [**MIT License**](LICENSE) © 2026 Wᴏᴜɴ†ᴢᴏN メ

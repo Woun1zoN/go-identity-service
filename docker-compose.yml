@@ -1,0 +1,25 @@
+version: "3.9"
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: project
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: service
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"

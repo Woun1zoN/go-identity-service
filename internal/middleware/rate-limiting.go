@@ -13,15 +13,15 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func AllowRequest(ctx context.Context, rdb *redis.Client, userID string, limit int, window time.Duration) (bool, error) {
-    now := time.Now().Unix()
+func AllowRequest(ctx context.Context, rdb *redis.Client, userID string, limit int, window time.Duration, nowFunc func() int64) (bool, error) {
+    now := nowFunc()
     key := "request:" + userID
 
     if err := rdb.ZRemRangeByScore(ctx, key, "0", fmt.Sprintf("%d", now-int64(window.Seconds()))).Err(); err != nil {
         return false, err
     }
 
-    count, err := rdb.ZCard(ctx, key).Result()
+    count, err := rdb.ZCount(ctx, key, fmt.Sprintf("%d", now-int64(window.Seconds())), fmt.Sprintf("%d", now)).Result()
     if err != nil {
         return false, err
     }
@@ -30,15 +30,14 @@ func AllowRequest(ctx context.Context, rdb *redis.Client, userID string, limit i
         return false, nil
     }
 
-    added, err := rdb.ZAddNX(ctx, key, redis.Z{Score: float64(now), Member: now}).Result()
-    if err != nil {
+    if _, err := rdb.ZAddNX(ctx, key, redis.Z{
+        Score:  float64(now),
+        Member: fmt.Sprintf("%d", now),
+    }).Result(); err != nil {
         return false, err
     }
 
-    if added > 0 {
-        rdb.Expire(ctx, key, window)
-    }
-
+    rdb.Expire(ctx, key, window)
     return true, nil
 }
 
@@ -49,12 +48,12 @@ func RateLimit(next http.Handler, limit int, window time.Duration, rdb *redis.Cl
             ip, _, _ = net.SplitHostPort(r.RemoteAddr)
         }
         ip = strings.TrimSpace(ip)
-    
+
         userID := ip
         if uid := r.Context().Value(UserIDKey); uid != nil {
             userID = fmt.Sprintf("%v", uid)
         }
-        allowed, err := AllowRequest(r.Context(), rdb, userID, limit, window)
+        allowed, err := AllowRequest(r.Context(), rdb, userID, limit, window, func() int64 { return time.Now().Unix() })
 
         if errorhandling.HTTPErrors(w, err, GetRequestID(r)) {
             return

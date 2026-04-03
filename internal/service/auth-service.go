@@ -10,8 +10,6 @@ import (
 	"github.com/Woun1zoN/go-identity-service/internal/models"
 	"github.com/Woun1zoN/go-identity-service/internal/auth"
 
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/jackc/pgx/v5"
 )
 
@@ -28,7 +26,7 @@ func NewService(userRepo *repository.UserRepository, authService *auth.AuthConfi
 }
 
 func (s *Service) RegisterUser(ctx context.Context, email, password string) (*models.UserResponse, error) {
-	passHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	passHash, err := auth.HashPassword(password)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +51,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (*models.To
 		return nil, err
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+	if err := auth.CheckPassword(user.PasswordHash, password); err != nil {
 		return nil, errors.New("unauthorized")
 	}
 

@@ -9,6 +9,8 @@ import (
 
 	"github.com/Woun1zoN/go-identity-service/internal/models"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
@@ -68,4 +70,13 @@ func (auth *AuthConfig) GenerateRefreshToken(userID string) (string, string, str
 func HashToken(token string) string {
 	hash := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(hash[:])
+}
+
+func HashPassword(password string) (string, error) {
+    hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+    return string(hash), err
+}
+
+func CheckPassword(hash, password string) error {
+    return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 }

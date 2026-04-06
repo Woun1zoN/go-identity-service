@@ -16,13 +16,18 @@ func InitDB(ctx context.Context) (*DBServer, error) {
 	user := os.Getenv("DB_USER")
     password := os.Getenv("DB_PASSWORD")
     dbname := os.Getenv("DB_NAME")
+	host := os.Getenv("DB_HOST")
+    
+    if host == "" {
+        host = "localhost"
+    }
 
 	conn := fmt.Sprintf(
-    "postgres://%s:%s@db:5432/%s?sslmode=disable",
-    user, password, dbname,
-)
-
+        "postgres://%s:%s@%s:5432/%s?sslmode=disable",
+        user, password, host, dbname,
+    )
 	pool, err := pgxpool.New(ctx, conn)
+
 	if err != nil {
 		return nil, fmt.Errorf("No connection to DB: %w", err)
 	}

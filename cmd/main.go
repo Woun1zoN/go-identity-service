@@ -3,14 +3,17 @@ package main
 import (
 	"context"
 	"log"
-	"time"
 	"os"
+	"time"
+	"strings"
+    "path/filepath"
 
+	"github.com/Woun1zoN/go-identity-service/internal/auth"
 	"github.com/Woun1zoN/go-identity-service/internal/db"
-	"github.com/Woun1zoN/go-identity-service/internal/repository"
+	"github.com/Woun1zoN/go-identity-service/internal/db/migrations"
 	"github.com/Woun1zoN/go-identity-service/internal/handlers"
 	"github.com/Woun1zoN/go-identity-service/internal/middleware"
-	"github.com/Woun1zoN/go-identity-service/internal/auth"
+	"github.com/Woun1zoN/go-identity-service/internal/repository"
 	"github.com/Woun1zoN/go-identity-service/internal/server"
 	"github.com/Woun1zoN/go-identity-service/internal/service"
 
@@ -64,7 +67,12 @@ func main() {
 
 	log.Println("Connected to DB")
 
-	err = dbServer.RunMigrations(context.Background())
+	wd, err := os.Getwd()
+	if err != nil {
+        log.Fatal(err)
+	}
+	migrationsPath := "file:///" + strings.ReplaceAll(filepath.Join(wd, "internal/db/migrations"), "\\", "/")
+	err = migrations.RunMigrations(migrations.BuildDBURL(), migrationsPath)
     if err != nil {
 		log.Fatalf("Migration error: %v", err)
     }

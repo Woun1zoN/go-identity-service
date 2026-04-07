@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"os"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -12,21 +11,8 @@ type DBServer struct {
 	DB *pgxpool.Pool
 }
 
-func InitDB(ctx context.Context) (*DBServer, error) {
-	user := os.Getenv("DB_USER")
-    password := os.Getenv("DB_PASSWORD")
-    dbname := os.Getenv("DB_NAME")
-	host := os.Getenv("DB_HOST")
-    
-    if host == "" {
-        host = "localhost"
-    }
-
-	conn := fmt.Sprintf(
-        "postgres://%s:%s@%s:5432/%s?sslmode=disable",
-        user, password, host, dbname,
-    )
-	pool, err := pgxpool.New(ctx, conn)
+func InitDB(ctx context.Context, dbURL string) (*DBServer, error) {
+	pool, err := pgxpool.New(ctx, dbURL)
 
 	if err != nil {
 		return nil, fmt.Errorf("No connection to DB: %w", err)

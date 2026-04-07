@@ -59,7 +59,9 @@ func main() {
 
 	// Connection DB
 
-	dbServer, err := db.InitDB(context.Background())
+	dbURL := migrations.BuildDBURL(false)
+
+	dbServer, err := db.InitDB(context.Background(), dbURL)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -71,8 +73,8 @@ func main() {
 	if err != nil {
         log.Fatal(err)
 	}
-	migrationsPath := "file:///" + strings.ReplaceAll(filepath.Join(wd, "internal/db/migrations"), "\\", "/")
-	err = migrations.RunMigrations(migrations.BuildDBURL(), migrationsPath)
+	migrationsPath := "file://" + strings.ReplaceAll(filepath.Join(wd, "internal/db/migrations"), "\\", "/")
+	err = migrations.RunMigrations(migrations.BuildDBURL(false), migrationsPath)
     if err != nil {
 		log.Fatalf("Migration error: %v", err)
     }

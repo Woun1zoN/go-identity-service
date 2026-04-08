@@ -1,10 +1,4 @@
-DB_CONTAINER_NAME := service_test
-DB_PASSWORD := 1234
-DB_PORT := 5432
-
-.PHONY: all env deps db up test clean
-
-all: env deps db up test
+.PHONY: env deps db up wait test clean
 
 env:
 	cp -n .env.example .env || echo ".env already exists"
@@ -12,11 +6,15 @@ env:
 deps:
 	go mod tidy
 
-up:
-	docker-compose up --build -d
+db:
+	docker-compose -f docker-compose.test.yml up -d
 
-test:
+wait:
+	@echo "Waiting for DB to be ready..."
+	@until docker exec service_test pg_isready -U testuser; do sleep 1; done
+
+test: db wait
 	go test ./tests/...
 
 clean:
-	docker rm -f $(DB_CONTAINER_NAME) || echo "Container not found"
+	docker-compose -f docker-compose.test.yml down -v

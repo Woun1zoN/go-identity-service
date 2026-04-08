@@ -18,7 +18,7 @@ func main() {
 	}
 
 	dbURL := migrations.BuildDBURL(false)
-	router, dbServer, err := app.InitApp(dbURL, []byte(key), "redis:6379")
+	router, dbServer, err := app.InitApp(dbURL, []byte(key), "redis:6379", false)
 	if err != nil {
 		log.Fatal(err)
 	}

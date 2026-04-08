@@ -19,7 +19,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func InitApp(dbURL string, jwtKey []byte, redisAddr string) (*chi.Mux, *db.DBServer, error) {
+func InitApp(dbURL string, jwtKey []byte, redisAddr string, skipMigrations bool) (*chi.Mux, *db.DBServer, error) {
 	r := chi.NewRouter()
 	validate := validator.New()
 
@@ -33,11 +33,13 @@ func InitApp(dbURL string, jwtKey []byte, redisAddr string) (*chi.Mux, *db.DBSer
 		return nil, nil, err
 	}
 
-	wd, _ := os.Getwd()
-	migrationsPath := "file://" + strings.ReplaceAll(filepath.Join(wd, "internal/db/migrations"), "\\", "/")
-	if err := migrations.RunMigrations(dbURL, migrationsPath); err != nil {
-		return nil, nil, err
-	}
+	if !skipMigrations {
+        wd, _ := os.Getwd()
+        migrationsPath := "file://" + strings.ReplaceAll(filepath.Join(wd, "internal/db/migrations"), "\\", "/")
+        if err := migrations.RunMigrations(dbURL, migrationsPath); err != nil {
+            return nil, nil, err
+        }
+    }
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr: redisAddr,

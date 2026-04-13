@@ -14,4 +14,5 @@ type User struct {
     ID           int
     PasswordHash string
 	Role         string
+	Email        string
 }

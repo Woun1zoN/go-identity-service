@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/joho/godotenv"
+	"github.com/stretchr/testify/require"
 
 	"github.com/Woun1zoN/go-identity-service/internal/app"
 	"github.com/Woun1zoN/go-identity-service/internal/models"
@@ -31,9 +32,7 @@ func TestRegisterUser(t *testing.T) {
 	}
 
 	router, dbServer, err := app.InitApp(dbURL, []byte("testkey"), "localhost:6379", true)
-    if err != nil {
-        t.Fatal(err)
-    }
+    require.NoError(t, err)
     defer dbServer.DB.Close()
 
 	body := `{"email":"test@example.com","password":"supersecret"}`
@@ -43,21 +42,18 @@ func TestRegisterUser(t *testing.T) {
 
 	router.ServeHTTP(w, r)
 
-	if w.Code != http.StatusCreated {
-		t.Fatalf("expected status 201, got %d, body: %s", w.Code, w.Body.String())
-	}
+	require.Equal(t, http.StatusCreated, w.Code, "body: %s", w.Body.String())
 
 	var response models.UserResponse
-	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
-        t.Fatal(err)
-    }
-	if response.Email != "test@example.com" || response.ID == 0 {
-        t.Fatalf("unexpected response: %+v", response)
-    }
+	err = json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err)
+
+	require.Equal(t, "test@example.com", response.Email)
+	require.NotZero(t, response.ID)
 
 	var email string
 	err = dbServer.DB.QueryRow(context.Background(), "SELECT email FROM users WHERE id=$1", response.ID).Scan(&email)
-    if err != nil || email != "test@example.com" {
-        t.Fatalf("user not found in DB or email mismatch: %v", err)
-    }
+
+    require.NoError(t, err)
+	require.Equal(t, "test@example.com", email)
 }

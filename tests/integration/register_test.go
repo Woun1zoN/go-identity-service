@@ -12,11 +12,19 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/require"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Woun1zoN/go-identity-service/internal/app"
 	"github.com/Woun1zoN/go-identity-service/internal/models"
 	"github.com/Woun1zoN/go-identity-service/internal/db/migrations"
 )
+
+func CleanDB(t *testing.T, db *pgxpool.Pool) {
+	_, err := db.Exec(context.Background(),
+		"TRUNCATE TABLE users RESTART IDENTITY CASCADE",
+	)
+	require.NoError(t, err)
+}
 
 func TestRegisterUser(t *testing.T) {
 	if err := godotenv.Load("../../.env"); err != nil && !os.IsNotExist(err) {
@@ -34,6 +42,8 @@ func TestRegisterUser(t *testing.T) {
 	router, dbServer, err := app.InitApp(dbURL, []byte("testkey"), "localhost:6379", true)
     require.NoError(t, err)
     defer dbServer.DB.Close()
+
+	CleanDB(t, dbServer.DB)
 
 	body := `{"email":"test@example.com","password":"supersecret"}`
 	r := httptest.NewRequest("POST", "/register", strings.NewReader(body))

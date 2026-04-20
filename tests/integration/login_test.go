@@ -2,77 +2,47 @@ package integration_test
 
 import (
 	"context"
-	"testing"
-	"os"
-	"path/filepath"
-	"net/http/httptest"
-	"strings"
-	"net/http"
 	"encoding/json"
-	"strconv"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"strings"
+	"testing"
 
-	"github.com/stretchr/testify/require"
-	"github.com/joho/godotenv"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/stretchr/testify/require"
 
 	"github.com/Woun1zoN/go-identity-service/internal/auth"
 	"github.com/Woun1zoN/go-identity-service/internal/models"
 	"github.com/Woun1zoN/go-identity-service/internal/repository"
-	"github.com/Woun1zoN/go-identity-service/internal/db/migrations"
-	"github.com/Woun1zoN/go-identity-service/internal/app"
 )
 
-var testKey = []byte("testkey")
-
 func ParseJWT(t *testing.T, tokenStr string) jwt.MapClaims {
-    token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
-        require.Equal(t, jwt.SigningMethodHS256, token.Method)
-        return []byte("testkey"), nil
+	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+		require.Equal(t, jwt.SigningMethodHS256, token.Method)
+		return []byte("testkey"), nil
 	})
-    require.NoError(t, err)
-    require.True(t, token.Valid)
+	require.NoError(t, err)
+	require.True(t, token.Valid)
 
-    claims, ok := token.Claims.(jwt.MapClaims)
-    require.True(t, ok)
+	claims, ok := token.Claims.(jwt.MapClaims)
+	require.True(t, ok)
 
-    return claims
+	return claims
 }
 
 func TestLoginUser(t *testing.T) {
-	if err := godotenv.Load("../../.env"); err != nil && !os.IsNotExist(err) {
-		t.Fatalf("failed to load .env: %v", err)
-	}
-
-	projectRoot := "../../"
-	migrationsPath := "file://" + filepath.ToSlash(filepath.Join(projectRoot, "internal/db/migrations"))
-	dbURL := migrations.BuildDBURL(true)
-
-	if err := migrations.RunMigrations(dbURL, migrationsPath); err != nil {
-		t.Fatalf("failed to run migrations: %v", err)
-	}
-
-	router, dbServer, err := app.InitApp(dbURL, testKey, "localhost:6379", true)
-    if err != nil {
-        t.Fatal(err)
-    }
-    defer dbServer.DB.Close()
-
-	CleanDB(t, dbServer.DB)
+	CleanDB(t)
 
 	email := "test@example.com"
 	password := "supersecret"
 
 	hash, _ := auth.HashPassword(password)
 
-	user := models.User{
-		Email:        email,
-		PasswordHash: hash,
-	}
+	repo := repository.NewUserRepository(testDB)
 
-	repo := repository.NewUserRepository(dbServer.DB)
-
-	userID, err := repo.CreateUser(context.Background(), user.Email, user.PasswordHash)
+	userID, err := repo.CreateUser(context.Background(), email, hash)
 	require.NoError(t, err)
 
 	body := fmt.Sprintf(`{"email":"%s","password":"%s"}`, email, password)
@@ -80,7 +50,7 @@ func TestLoginUser(t *testing.T) {
 	r.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
-	router.ServeHTTP(w, r)
+	TestRouter.ServeHTTP(w, r)
 
 	require.Equal(t, http.StatusOK, w.Code)
 

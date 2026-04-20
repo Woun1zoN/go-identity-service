@@ -5,6 +5,7 @@ import (
 	"os"
     "context"
     "log"
+	"time"
 
 	"github.com/golang-migrate/migrate/v4"
     _ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -13,6 +14,10 @@ import (
 )
 
 func RunMigrations(dbURL, migrationsPath string) error {
+	if err := WaitForDB(dbURL, 30*time.Second); err != nil {
+		return fmt.Errorf("database not ready: %w", err)
+	}
+
     m, err := migrate.New(migrationsPath, dbURL)
     if err != nil {
         return err
@@ -23,6 +28,10 @@ func RunMigrations(dbURL, migrationsPath string) error {
     if err := m.Up(); err != nil && err != migrate.ErrNoChange {
         return err
     }
+
+	if err := WaitForTables(dbURL, 30*time.Second); err != nil {
+		return fmt.Errorf("tables not ready: %w", err)
+	}
 
     return nil
 }
@@ -76,4 +85,70 @@ func SetupTestDB(dbName string) error {
 	}
 
 	return nil
+}
+
+func WaitForDB(dbURL string, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	pool, err := pgxpool.New(context.Background(), dbURL)
+	if err != nil {
+		return fmt.Errorf("create pool: %w", err)
+	}
+	defer pool.Close()
+
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+
+	var lastErr error
+
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("timeout waiting for db: %w", lastErr)
+		case <-ticker.C:
+			pingCtx, cancelPing := context.WithTimeout(context.Background(), time.Second)
+			lastErr = pool.Ping(pingCtx)
+			cancelPing()
+
+			if lastErr == nil {
+				return nil
+			}
+		}
+	}
+}
+
+func WaitForTables(dbURL string, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	pool, err := pgxpool.New(context.Background(), dbURL)
+	if err != nil {
+		return fmt.Errorf("create pool: %w", err)
+	}
+	defer pool.Close()
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	var lastErr error
+
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("timeout waiting for tables: %w", lastErr)
+		case <-ticker.C:
+			pingCtx, cancelPing := context.WithTimeout(context.Background(), time.Second)
+
+			var exists bool
+			lastErr = pool.QueryRow(pingCtx,
+				"SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='users')").Scan(&exists)
+
+			cancelPing()
+
+			if lastErr == nil && exists {
+				return nil
+			}
+		}
+	}
 }

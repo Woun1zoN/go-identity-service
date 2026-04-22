@@ -27,7 +27,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	_ = godotenv.Load("../../.env")
+	_ = godotenv.Load("../../.env.test")
 
 	TestDBURL = migrations.BuildDBURL(true)
 

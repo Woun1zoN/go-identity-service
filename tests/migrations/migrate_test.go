@@ -42,7 +42,7 @@ func CheckTables(db *pgxpool.Pool) error {
 }
 
 func TestMigrations(t *testing.T) {
-	err := godotenv.Load("../../.env")
+	err := godotenv.Load("../../.env.test")
 	if err != nil && !os.IsNotExist(err) {
 		t.Fatalf("failed to load .env: %v", err)
 	}

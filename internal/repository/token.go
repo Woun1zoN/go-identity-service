@@ -3,11 +3,15 @@ package repository
 import (
 	"context"
 	"time"
+	"errors"
 
 	"github.com/Woun1zoN/go-identity-service/internal/models"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5"
 )
+
+var ErrNotFound = errors.New("not found")
 
 type UserRepository struct {
 	DB *pgxpool.Pool
@@ -20,8 +24,15 @@ func NewUserRepository(db *pgxpool.Pool) *UserRepository {
 func (r *UserRepository) GetRefreshTokenByID(ctx context.Context, jti string) (*models.RefreshToken, error) {
 	var token models.RefreshToken
 
-	err := r.DB.QueryRow(ctx, "SELECT token_hash, revoked, expires_at FROM refresh_tokens WHERE id=$1", jti).Scan(&token.TokenHash, &token.Revoked, &token.ExpiresAt)
+	err := r.DB.QueryRow(ctx,
+		"SELECT token_hash, revoked, expires_at FROM refresh_tokens WHERE id=$1",
+		jti,
+	).Scan(&token.TokenHash, &token.Revoked, &token.ExpiresAt)
+
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 

@@ -2,9 +2,6 @@ package app
 
 import (
 	"context"
-	"strings"
-	"path/filepath"
-	"os"
 
 	"github.com/Woun1zoN/go-identity-service/internal/auth"
 	"github.com/Woun1zoN/go-identity-service/internal/db"
@@ -34,8 +31,7 @@ func InitApp(dbURL string, jwtKey []byte, redisAddr string, skipMigrations bool)
 	}
 
 	if !skipMigrations {
-        wd, _ := os.Getwd()
-        migrationsPath := "file://" + strings.ReplaceAll(filepath.Join(wd, "internal/db/migrations"), "\\", "/")
+        migrationsPath := "file:///app/internal/db/migrations"
         if err := migrations.RunMigrations(dbURL, migrationsPath); err != nil {
             return nil, nil, err
         }

@@ -3,7 +3,7 @@ FROM golang:1.26-alpine AS build
 WORKDIR /app
 
 COPY go.mod go.sum ./
-RUN go mod tidy
+RUN go mod download
 
 COPY . .
 
@@ -14,7 +14,9 @@ FROM alpine:latest
 RUN apk add --no-cache postgresql-client
 
 WORKDIR /app
+
 COPY --from=build /app/app .
+COPY --from=build /app/internal/db/migrations ./internal/db/migrations
 
 EXPOSE 8080
 

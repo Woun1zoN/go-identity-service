@@ -36,23 +36,18 @@ git clone https://github.com/Woun1zoN/go-identity-service.git
 cd go-identity-service
 
 # Create your own environment file
-cp .env.example .env
-# Edit .env to reflect your settings
-
-# Install dependencies
-go mod tidy
+make env
+# ! Edit .env to reflect your settings
 
 # Build and start all containers
-docker-compose up --build
+make dev
 ```
 
 ## 🔹 Usage
 ### Startup Logs
 ```bash
-app-1    | 2023/12/01 12:00:00 Connected to DB
-app-1    | 2023/12/01 12:00:00 Server started on http://localhost:8080
+app-1    | 2023/12/01 12:00:00 Server started on 0.0.0.0:8080
 ```
----
 ### CURL Requests Example ([Full API Documentation](https://github.com/Woun1zoN/go-identity-service/blob/main/documentation/api.md))
 #### 🟡 POST `/register`
 
@@ -167,27 +162,38 @@ go-identity-service/
 DB_USER=your_db_user       # database username
 DB_PASSWORD=your_db_pass   # password
 DB_NAME=your_db_name       # database name
+DB_HOST=your_db_host       # database host
 
 # JWT
-JWT_SECRET=changeme        # token signing secret (should be strong)
+JWT_SECRET=change_me       # token signing secret (should be strong)
 ```
 ---
-### Redis & Rate Limiting
-#### Redis Configuration (from [main.go](https://github.com/Woun1zoN/go-identity-service/blob/main/cmd/main.go))
-```go
-rdb := redis.NewClient(&redis.Options{
-    Addr:     "redis:6379",
-    Password: "",
-    DB:       0,
-})
-```
-#### Individual limits for endpoints:
+### Rate Limiting:
 | Endpoint         | Limit       | Notes                      |
 | ---------------- | ----------- | -------------------------- |
 | `/register`      | 3 / minute  | open endpoint              |
 | `/login`         | 5 / minute  | open endpoint              |
 | `/refresh`       | 10 / minute | open endpoint              |
 | `/admin/promote` | 1 / minute  | requires auth + admin role |
+---
+## 🔹 Development Commands ([Makefile](https://github.com/Woun1zoN/go-identity-service/blob/main/Makefile))
+```Makefile
+make dev              # build & run application (Docker)
+make dev-down         # stop application containers
+
+make env              # create .env from example (if not exists)
+make deps             # tidy Go modules
+
+make db               # start test database (Docker)
+make wait             # wait until DB is ready
+
+make test             # run unit + integration tests
+make test-unit        # run unit tests only
+make test-integration # run integration tests only
+make test-all         # run full test suite (incl. migrations)
+
+make clean            # stop test database containers
+```
 ---
 ## 🔹 License & Contacts
 This project is licensed under the [**MIT License**](LICENSE) © 2026 Wᴏᴜɴ†ᴢᴏN メ

@@ -44,6 +44,7 @@ make dev
 ```bash
 app-1    | 2023/12/01 12:00:00 Server started on 0.0.0.0:8080
 ```
+---
 ### CURL Requests Example ([Full API Documentation](https://github.com/Woun1zoN/go-identity-service/blob/main/documentation/api.md))
 #### 🟡 POST `/register`
 
@@ -126,7 +127,19 @@ go-identity-service/
 ├── go.mod                                          # dependencies
 └── go.sum
 ```
-
+---
+## 🔹 Tests Usage
+### Run all tests:
+```makefile
+make test-all
+```
+### Individual test targets:
+```makefile
+make test             # run unit and integration tests
+make test-integration # run integration tests
+make test-unit        # run unit tests
+```
+---
 ## 🔹 Configuration
 ### Database Tables:
 #### Table `users`

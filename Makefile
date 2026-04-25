@@ -1,4 +1,13 @@
-.PHONY: env deps db up wait test test-integration test-unit test-all clean
+.PHONY: env deps db up wait test test-integration test-unit test-all clean dev dev-down
+
+DB_CONTAINER=service_test
+DB_USER=testuser
+
+dev:
+	docker-compose up --build
+
+dev-down:
+	docker-compose down
 
 env:
 	cp -n .env.example .env || echo ".env already exists"
@@ -11,7 +20,7 @@ db:
 
 wait:
 	@echo "Waiting for DB to be ready..."
-	@until docker exec service_test pg_isready -U testuser; do sleep 1; done
+	@until docker exec $(DB_CONTAINER) pg_isready -U $(DB_USER); do sleep 1; done
 
 test: db wait
 	go clean -testcache

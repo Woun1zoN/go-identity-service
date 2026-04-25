@@ -3,28 +3,24 @@
 A Go-based authentication and **identity service** with JWT, refresh token rotation, role-based access control, token revocation, and rate limiting.
 
 ## 🔹 Features
-<ul style="margin:0; padding-left:20px; line-height:1.2">
-  <li><b>JWT-based authentication</b> (access & refresh tokens)</li>
-  <li><b>Secure refresh token rotation</b></li>
-  <li><b>Refresh token revocation</b> endpoint</li>
-  <li><b>Role-based access control</b> (user/admin)</li>
-  <li><b>Rate limiting</b> with Redis</li>
-  <li><b>Middleware:</b>
-    <ul style="margin:0; padding-left:15px; line-height:1.2">
-      <li>Authentication</li>
-      <li>Request context</li>
-      <li>Structured logging</li>
-      <li>Rate limiting</li>
-      <li>Panic recovery</li>
-      <li>Request ID tracking</li>
-      <li>Role-based authorization</li>
-    </ul>
-  </li>
-  <li><b>Graceful shutdown</b></li>
-  <li><b>Centralized error handling</b></li>
-  <li><b>Clean architecture</b> with a separate service layer</li>
-  <li><b>Migration DB tables</b></li>
-</ul>
+
+- **JWT-based authentication** (access & refresh tokens)
+- **Secure refresh token rotation**
+- **Refresh token revocation**
+- **Role-based access control** (user/admin)
+- **Rate limiting with Redis**
+- **Middleware:**
+  - Authentication
+  - Request context
+  - Structured logging
+  - Rate limiting
+  - Panic recovery
+  - Request ID tracking
+  - Role-based authorization
+- **Graceful shutdown**
+- **Centralized error handling**
+- **Clean architecture**
+- **DB migrations**
 
 ## 🔹 Tech Stack
 ![Go](https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white) ![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)

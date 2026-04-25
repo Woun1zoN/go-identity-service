@@ -16,7 +16,7 @@ func Run(ctx context.Context, r http.Handler) {
 	}
 
 	go func() {
-		log.Println("Server started on http://localhost:8080")
+		log.Println("Server started on 0.0.0.0:8080")
 
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal("The server caught a sad one:", err)

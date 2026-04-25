@@ -4,9 +4,11 @@ import (
 	"net/http"
 	"encoding/json"
 	"strconv"
+	"errors"
 
 	"github.com/Woun1zoN/go-identity-service/internal/error_handling"
 	"github.com/Woun1zoN/go-identity-service/internal/middleware"
+	"github.com/Woun1zoN/go-identity-service/internal/service"
 )
 
 func (h *Handler) Profile(w http.ResponseWriter, r *http.Request) {
@@ -43,10 +45,16 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
         return
 	}
 
-	response, err := h.Service.Refresh(r.Context(), req.RefreshToken, w, r)
-	if errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r)) {
-		return
-	}
+	response, err := h.Service.Refresh(r.Context(), req.RefreshToken)
+	if err != nil {
+        if errors.Is(err, service.ErrInvalidToken) {
+            errorhandling.Unauthorized(w, r, middleware.GetRequestID(r))
+            return
+		}
+
+        errorhandling.HTTPErrors(w, err, middleware.GetRequestID(r))
+        return
+    }
 
 	json.NewEncoder(w).Encode(response)
 }

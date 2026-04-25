@@ -36,23 +36,18 @@ git clone https://github.com/Woun1zoN/go-identity-service.git
 cd go-identity-service
 
 # Create your own environment file
-cp .env.example .env
-# Edit .env to reflect your settings
-
-# Install dependencies
-go mod tidy
+make env
+# ! Edit .env to reflect your settings
 
 # Build and start all containers
-docker-compose up --build
+make dev
 ```
 
 ## 🔹 Usage
 ### Startup Logs
 ```bash
-app-1    | 2023/12/01 12:00:00 Connected to DB
-app-1    | 2023/12/01 12:00:00 Server started on http://localhost:8080
+app-1    | 2023/12/01 12:00:00 Server started on 0.0.0.0:8080
 ```
----
 ### CURL Requests Example ([Full API Documentation](https://github.com/Woun1zoN/go-identity-service/blob/main/documentation/api.md))
 #### 🟡 POST `/register`
 
@@ -94,41 +89,45 @@ curl -X POST http://localhost:8080/login \
 ---
 ## 🔹 Project Structure
 ```bash
-go-identity-service
-├── cmd
-│   └── main.go                  # application entry point
-├── internal
-│   ├── auth
-│   │   └── jwt.go               # JWT handling (generation, verification)
-│   ├── db
-│   │   ├── connection.go        # database connection
-│   │   └── migrate.go           # database schema migrations
-│   ├── error_handling
-│   │   ├── error-handling.go    # centralized error handling
-│   │   └── errors.go
-│   ├── handlers
-│   │   ├── auth-handler.go      # HTTP endpoints for authentication
-│   │   └── user-handler.go      # HTTP endpoints for users
-│   ├── middleware
-│   │   ├── auth.go              # authorization verification
-│   │   ├── context.go           # adding context to requests
-│   │   ├── logger.go            # logging
-│   │   ├── rate-limiting.go     # request rate limiting
-│   │   ├── recovery.go          # panic recovery
-│   │   ├── request-id.go        # generating a unique request ID
-│   │   └── roles.go             # role-based access
-│   ├── models
-│   │   ├── db.go                # database models
-│   │   └── http.go              # models for the API
-│   ├── repository
-│   │   ├── token.go             # working with tokens (storage, validation)
-│   │   └── user.go              # working with users in the database
-│   ├── server
-│   │   └── server.go            # HTTP server configuration and startup
-│   └── service
-│       ├── auth-service.go      # authentication business logic
-│       └── user-service.go      # business logic for working with users
-├── go.mod                       # go dependencies and modules
+go-identity-service/
+├── cmd/                                            # entry point
+│   └── main.go
+├── internal/                                       # application core
+│   ├── app/                                        # dependency wiring + bootstrap
+│   │   └── app.go
+│   ├── auth/                                       # JWT generate / validate tokens
+│   │   └── jwt.go
+│   ├── db/                                         # database layer
+│   │   ├── migrations/                             # database migrations
+│   │   └── connection.go                           # DB connection setup
+│   ├── error_handling/                             # unified error system
+│   │   ├── error-handling.go
+│   ├── handlers/                                   # HTTP layer (controllers)
+│   │   ├── auth-handler.go
+│   │   └── user-handler.go
+│   ├── middleware/                                 # middleware features
+│   │   ├── auth.go
+│   │   ├── context.go
+│   │   ├── logger.go
+│   │   ├── rate-limiting.go
+│   │   ├── recovery.go
+│   │   ├── request-id.go
+│   │   └── roles.go
+│   ├── models/                                     # data structures
+│   ├── repository/                                 # database access layer
+│   │   ├── token.go
+│   │   └── user.go
+│   ├── server/                                     # HTTP server setup
+│   │   └── server.go
+│   └── service/                                    # business logic layer
+│       ├── auth-service.go
+│       └── user-service.go
+├── tests/                                          # testing suite
+│   ├── auth/                                       # unit tests for auth logic
+│   ├── integration/                                # full API flow tests
+│   ├── middleware/                                 # middleware behavior tests
+│   └── migrations/                                 # DB migration correctness
+├── go.mod                                          # dependencies
 └── go.sum
 ```
 
@@ -163,27 +162,38 @@ go-identity-service
 DB_USER=your_db_user       # database username
 DB_PASSWORD=your_db_pass   # password
 DB_NAME=your_db_name       # database name
+DB_HOST=your_db_host       # database host
 
 # JWT
-JWT_SECRET=changeme        # token signing secret (should be strong)
+JWT_SECRET=change_me       # token signing secret (should be strong)
 ```
 ---
-### Redis & Rate Limiting
-#### Redis Configuration (from [main.go](https://github.com/Woun1zoN/go-identity-service/blob/main/cmd/main.go))
-```go
-rdb := redis.NewClient(&redis.Options{
-    Addr:     "redis:6379",
-    Password: "",
-    DB:       0,
-})
-```
-#### Individual limits for endpoints:
+### Rate Limiting:
 | Endpoint         | Limit       | Notes                      |
 | ---------------- | ----------- | -------------------------- |
 | `/register`      | 3 / minute  | open endpoint              |
 | `/login`         | 5 / minute  | open endpoint              |
 | `/refresh`       | 10 / minute | open endpoint              |
 | `/admin/promote` | 1 / minute  | requires auth + admin role |
+---
+## 🔹 Development Commands ([Makefile](https://github.com/Woun1zoN/go-identity-service/blob/main/Makefile))
+```Makefile
+make dev              # build & run application (Docker)
+make dev-down         # stop application containers
+
+make env              # create .env from example (if not exists)
+make deps             # tidy Go modules
+
+make db               # start test database (Docker)
+make wait             # wait until DB is ready
+
+make test             # run unit + integration tests
+make test-unit        # run unit tests only
+make test-integration # run integration tests only
+make test-all         # run full test suite (incl. migrations)
+
+make clean            # stop test database containers
+```
 ---
 ## 🔹 License & Contacts
 This project is licensed under the [**MIT License**](LICENSE) © 2026 Wᴏᴜɴ†ᴢᴏN メ

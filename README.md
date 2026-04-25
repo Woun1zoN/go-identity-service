@@ -178,6 +178,8 @@ JWT_SECRET=change_me       # token signing secret (should be strong)
 ---
 ## 🔹 Development Commands ([Makefile](https://github.com/Woun1zoN/go-identity-service/blob/main/Makefile))
 ```Makefile
+make help             # Show available makefile commands
+
 make dev              # build & run application (Docker)
 make dev-down         # stop application containers
 

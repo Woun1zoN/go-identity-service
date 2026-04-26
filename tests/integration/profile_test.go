@@ -24,7 +24,7 @@ func TestProfile(t *testing.T) {
     password := "supersecret"
 
 	hash, _ := auth.HashPassword(password)
-	userID, err := repo.CreateUser(ctx, email, hash)
+	userID, _, err := repo.CreateUser(ctx, email, hash)
 	require.NoError(t, err)
 
 	authService := &auth.AuthConfig{

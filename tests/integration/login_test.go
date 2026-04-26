@@ -42,7 +42,7 @@ func TestLoginUser(t *testing.T) {
 
 	repo := repository.NewUserRepository(testDB)
 
-	userID, err := repo.CreateUser(context.Background(), email, hash)
+	userID, _, err := repo.CreateUser(context.Background(), email, hash)
 	require.NoError(t, err)
 
 	body := fmt.Sprintf(`{"email":"%s","password":"%s"}`, email, password)

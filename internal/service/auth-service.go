@@ -31,7 +31,7 @@ func (s *Service) RegisterUser(ctx context.Context, email, password string) (*mo
 		return nil, err
 	}
 
-	userID, err := s.UserRepo.CreateUser(ctx, email, string(passHash))
+	userID, role, err := s.UserRepo.CreateUser(ctx, email, string(passHash))
 	if err != nil {
 		return nil, err
 	}
@@ -39,6 +39,7 @@ func (s *Service) RegisterUser(ctx context.Context, email, password string) (*mo
 	return &models.UserResponse{
 		ID:    userID,
 		Email: email,
+		Role:  role,
 	}, nil
 }
 

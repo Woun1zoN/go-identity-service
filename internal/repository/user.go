@@ -20,14 +20,15 @@ func (r *UserRepository) GetUserByID(ctx context.Context, userID int) (*models.U
 	return &response, nil
 }
 
-func (r *UserRepository) CreateUser(ctx context.Context, email, passwordHash string) (int, error) {
+func (r *UserRepository) CreateUser(ctx context.Context, email, passwordHash string) (int, string, error) {
 	var userID int
-	err := r.DB.QueryRow(ctx, "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id",
-		email, passwordHash).Scan(&userID)
+	var role string
+	err := r.DB.QueryRow(ctx, "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, role",
+		email, passwordHash).Scan(&userID, &role)
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
-	return userID, nil
+	return userID, role, nil
 }
 
 func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
